@@ -1,0 +1,125 @@
+name: CI / Deploy
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run typecheck
+      - run: npm test
+      - run: npx tsx scripts/coverage-matrix.ts --check
+      - name: Build (Hugging Face target)
+        run: npm run build
+      - name: Build (GitHub Pages target)
+        run: npm run build:pages
+      - name: Verify target-specific build settings
+        run: |
+          grep -q 'src="/assets/' apps/web/dist/index.html
+          grep -q 'src="/KCNA/assets/' apps/web/dist-pages/index.html
+          grep -rq 'mhamdan-kcna.hf.space' apps/web/dist-pages/assets/
+          ! grep -rq 'mhamdan-kcna.hf.space' apps/web/dist/assets/
+      - name: Install Playwright browser
+        run: npx playwright install --with-deps chromium
+      - name: End-to-end tests
+        run: npm run test:e2e
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: playwright-report
+          path: playwright-report
+          retention-days: 7
+      - name: Assemble Space bundle
+        run: npm run space:bundle
+      - uses: actions/upload-pages-artifact@v3
+        if: github.event_name != 'pull_request'
+        with:
+          path: apps/web/dist-pages
+      - uses: actions/upload-artifact@v4
+        if: github.event_name != 'pull_request'
+        with:
+          name: space-bundle
+          path: .space-build
+          include-hidden-files: true
+          retention-days: 3
+
+  deploy-pages:
+    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+    needs: test
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
+
+  deploy-huggingface:
+    # Never runs for pull requests, so the token is not exposed to untrusted code.
+    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+    needs: test
+    runs-on: ubuntu-latest
+    environment: huggingface
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: space-bundle
+          path: space-bundle
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: pip install --quiet "huggingface_hub>=0.30"
+      - name: Upload to Space MHamdan/KCNA
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+        run: |
+          if [ -z "$HF_TOKEN" ]; then
+            echo "::warning::HF_TOKEN secret not set; skipping Hugging Face deployment (see docs/DEPLOYMENT.md)."
+            echo "SKIP_HF=1" >> "$GITHUB_ENV"
+            exit 0
+          fi
+          python - <<'PY'
+          import os
+          from huggingface_hub import HfApi
+          api = HfApi(token=os.environ["HF_TOKEN"])
+          api.upload_folder(
+              repo_id="MHamdan/KCNA",
+              repo_type="space",
+              folder_path="space-bundle",
+              delete_patterns=["web/**", "*.mjs"],
+              commit_message=f"Deploy {os.environ['GITHUB_SHA'][:7]} from GitHub",
+          )
+          print("uploaded")
+          PY
+      - name: Wait for the Space to serve this commit
+        if: env.SKIP_HF != '1'
+        run: |
+          for i in $(seq 1 60); do
+            if curl -fs https://mhamdan-kcna.hf.space/version.json | grep -q "$GITHUB_SHA"; then
+              curl -fs https://mhamdan-kcna.hf.space/api/health; echo; exit 0
+            fi
+            sleep 20
+          done
+          echo "Space did not serve $GITHUB_SHA within 20 minutes" >&2
+          exit 1

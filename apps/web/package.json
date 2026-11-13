@@ -1,0 +1,19 @@
+{
+  "name": "@kcna/web",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "build:pages": "vite build --mode pages",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "@kcna/content": "1.0.0",
+    "@kcna/engine": "1.0.0",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "react-router-dom": "^7.0.0"
+  }
+}

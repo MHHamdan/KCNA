@@ -1,0 +1,11 @@
+{
+  "name": "@kcna/api",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "STATIC_DIR=../web/dist tsx watch src/main.ts",
+    "build": "esbuild src/main.ts --bundle --platform=node --target=node18 --format=esm --outfile=dist/server.mjs --banner:js=\"import{createRequire}from'module';const require=createRequire(import.meta.url);\""
+  },
+  "dependencies": { "@kcna/engine": "1.0.0", "@kcna/content": "1.0.0" }
+}

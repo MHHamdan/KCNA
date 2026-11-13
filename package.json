@@ -1,0 +1,47 @@
+{
+  "name": "kcna-interactive-lab",
+  "private": true,
+  "version": "1.0.0",
+  "description": "KCNA Interactive Learning Lab — learn, practice, troubleshoot, ask, review and pass.",
+  "type": "module",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "npm run dev -w @kcna/web",
+    "dev:api": "npm run dev -w @kcna/api",
+    "typecheck": "tsc -p tsconfig.json",
+    "lint": "eslint .",
+    "test": "vitest run",
+    "test:e2e": "playwright test",
+    "build": "npm run build -w @kcna/web && npm run build -w @kcna/api",
+    "build:pages": "npm run build:pages -w @kcna/web",
+    "coverage:matrix": "tsx scripts/coverage-matrix.ts",
+    "check:links": "tsx scripts/check-links.ts",
+    "space:bundle": "tsx scripts/build-space.ts"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "devDependencies": {
+    "@axe-core/playwright": "^4.13.0",
+    "@eslint/js": "^10.0.1",
+    "@playwright/test": "^1.65.0",
+    "@tailwindcss/vite": "^4.3.5",
+    "@types/node": "^20.19.43",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "@vitejs/plugin-react": "^6.3.0",
+    "esbuild": "^0.28.2",
+    "eslint": "^10.14.0",
+    "eslint-plugin-react-hooks": "^7.1.1",
+    "globals": "^17.14.0",
+    "tailwindcss": "^4.3.5",
+    "tsx": "^4.23.15",
+    "typescript": "^6.0.3",
+    "typescript-eslint": "^8.72.2",
+    "vite": "^8.3.8",
+    "vitest": "^4.1.12"
+  }
+}
