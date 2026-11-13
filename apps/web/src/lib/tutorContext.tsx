@@ -1,5 +1,5 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
-import type { TutorContext, TutorMode, TutorSource } from '@kcna/engine';
+import type { FactNote, TutorContext, TutorMode, TutorSource } from '@kcna/engine';
 import { MAX_TUTOR_MESSAGES } from '@kcna/engine';
 import { checkTutor, streamTutor, TutorError, type TutorAvailability } from './tutor';
 import { getProgress, updateProgress } from './store';
@@ -8,6 +8,7 @@ export interface TutorMessage {
   role: 'user' | 'assistant';
   content: string;
   sources?: TutorSource[];
+  notes?: FactNote[];
   error?: { code: string; message: string; question: string };
   context?: TutorContext;
 }
@@ -92,6 +93,7 @@ export function TutorProvider({ children }: { children: ReactNode }) {
         {
           onMeta: (m) => patchLast((x) => ({ ...x, sources: m.sources })),
           onToken: (t) => patchLast((x) => ({ ...x, content: x.content + t })),
+          onNotes: (notes) => patchLast((x) => ({ ...x, notes })),
         },
         ac.signal,
       )

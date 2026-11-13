@@ -13,9 +13,9 @@ COPY --from=node /usr/local/bin/node /usr/local/bin/node
 
 # Model is public; it is downloaded at build time so cold starts don't re-download it.
 # Override with Space variables MODEL_REPO / MODEL_FILE (passed as build args).
-ARG MODEL_REPO=unsloth/Qwen3.5-2B-GGUF
-ARG MODEL_FILE=Qwen3.5-2B-Q4_K_M.gguf
-ARG MODEL_LABEL="Qwen3.5-2B (Q4_K_M, llama.cpp CPU)"
+ARG MODEL_REPO=unsloth/Qwen3-4B-Instruct-2507-GGUF
+ARG MODEL_FILE=Qwen3-4B-Instruct-2507-Q4_K_M.gguf
+ARG MODEL_LABEL="Qwen3-4B-Instruct-2507 (Q4_K_M, llama.cpp CPU)"
 RUN mkdir -p /models \
  && curl -fsSL --retry 5 --retry-delay 5 -o /models/model.gguf "https://huggingface.co/${MODEL_REPO}/resolve/main/${MODEL_FILE}" \
  && ls -la /models
@@ -25,7 +25,9 @@ COPY server.mjs start.sh ./
 COPY web ./web
 RUN chmod 755 /srv/start.sh && chmod -R a+rX /srv /models
 
-ENV PORT=7860 \
+# llama.cpp ships its shared libraries next to the binary in /app
+ENV LD_LIBRARY_PATH=/app \
+    PORT=7860 \
     STATIC_DIR=/srv/web \
     LLAMA_URL=http://127.0.0.1:8081 \
     TUTOR_PROVIDER=llamacpp \

@@ -5,7 +5,7 @@ import { createApp, type ServerConfig } from '../src/server';
 import { DisabledProvider, OpenAICompatibleProvider, type Provider } from '../src/providers';
 
 // A fake OpenAI-compatible model server (stands in for llama-server / HF router).
-let mockBehaviour: 'ok' | 'quota' | 'down' | 'slow' | 'loading' = 'ok';
+let mockBehaviour: 'ok' | 'quota' | 'down' | 'slow' | 'loading' | 'wrong' = 'ok';
 let lastBody: { messages: { role: string; content: string }[]; max_tokens: number } | null = null;
 let mock: Server;
 let mockUrl = '';
@@ -25,6 +25,11 @@ beforeAll(async () => {
       res.writeHead(200, { 'content-type': 'text/event-stream' });
       const send = (t: string) => res.write(`data: ${JSON.stringify({ choices: [{ delta: { content: t } }] })}\n\n`);
       if (mockBehaviour === 'slow') return void setTimeout(() => res.end(), 2000);
+      if (mockBehaviour === 'wrong') {
+        send('To roll back, delete the Deployment and apply it again.');
+        res.write('data: [DONE]\n\n');
+        return void res.end();
+      }
       send('<think>internal</think>');
       send('A Pod is ');
       send('the smallest unit [1].');
@@ -88,6 +93,19 @@ describe('tutor API', () => {
     expect(r.events.at(-1)!.event).toBe('done');
     expect(lastBody!.max_tokens).toBe(300);
     expect(lastBody!.messages[0].role).toBe('system');
+    s.close();
+  });
+
+  it('appends verified corrections when the model repeats a known misconception', async () => {
+    mockBehaviour = 'wrong';
+    const { s, url } = await start(cfg());
+    const r = await chat(url, ask('How do I roll back?'));
+    const notes = r.events.find((e) => e.event === 'notes');
+    expect(notes?.data.notes[0]).toMatchObject({ id: 'rollback-by-delete', lessonId: 'rollouts-and-deployment-strategies' });
+    expect(r.events.at(-1)!.event).toBe('done');
+    mockBehaviour = 'ok';
+    const ok = await chat(url, ask('What is a Pod?'));
+    expect(ok.events.some((e) => e.event === 'notes')).toBe(false);
     s.close();
   });
 

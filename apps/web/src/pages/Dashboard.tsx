@@ -61,7 +61,7 @@ export function Dashboard() {
         <Stat label="Readiness indicator" value={`${r.index}/100`} hint={STATUS_LABEL[r.status]} />
         <Stat label="Lessons" value={`${lessonsDone}/${lessons.length}`} hint={`${labsDone}/${labs.filter((l) => l.status === 'full').length} hands-on labs done`} />
         <Stat label="Question accuracy" value={answered ? pct(accuracy) : '—'} hint={`${answered} answers · ${questions.length} questions in bank`} />
-        <Stat label="Flashcards due" value={due} hint={<Link className="underline" to="/flashcards">Review now</Link>} />
+        <Stat label="Flashcards due" value={due} hint={<Link className="underline" to="/flashcards">{Object.keys(p.cards).length ? 'Review now' : 'Includes new cards — start now'}</Link>} />
       </div>
 
       <div className="grid gap-4 lg:grid-cols-3">

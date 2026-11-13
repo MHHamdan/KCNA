@@ -5,6 +5,7 @@ import {
   buildChat,
   cleanModelOutput,
   contentIndex,
+  factCheck,
   retrieve,
   validateTutorRequest,
   TUTOR_LIMITS,
@@ -33,7 +34,7 @@ export function configFromEnv(env = process.env): ServerConfig {
     rateLimit: { max: Number(env.RATE_LIMIT_MAX ?? 20), windowMs: Number(env.RATE_LIMIT_WINDOW_MS ?? 10 * 60_000) },
     concurrency: Number(env.TUTOR_CONCURRENCY ?? 1),
     maxQueue: Number(env.TUTOR_MAX_QUEUE ?? 4),
-    maxTokens: Number(env.TUTOR_MAX_TOKENS ?? 600),
+    maxTokens: Number(env.TUTOR_MAX_TOKENS ?? 450),
     timeoutMs: Number(env.TUTOR_TIMEOUT_MS ?? 180_000),
   };
 }
@@ -167,8 +168,10 @@ export function createApp(cfg: ServerConfig) {
           sentLen = clean.length;
         }
       }
+      const notes = factCheck(cleanModelOutput(out));
+      if (notes.length) send('notes', { notes });
       send('done', { ms: Date.now() - started });
-      log(`tutor ok mode=${v.value.mode} turns=${v.value.messages.length} chars=${sentLen} ms=${Date.now() - started}`);
+      log(`tutor ok mode=${v.value.mode} turns=${v.value.messages.length} chars=${sentLen} notes=${notes.length} ms=${Date.now() - started}`);
     } catch (e) {
       const pe = e instanceof ProviderError ? e : new ProviderError('upstream', 'Unexpected model error.');
       send('error', { code: pe.code, message: pe.message });

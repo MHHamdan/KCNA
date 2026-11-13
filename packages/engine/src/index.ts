@@ -7,3 +7,4 @@ export * from './readiness';
 export * from './kubectl';
 export * from './yamlcheck';
 export * from './tutor';
+export * from './factguard';

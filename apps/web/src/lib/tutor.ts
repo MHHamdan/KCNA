@@ -1,4 +1,4 @@
-import type { ChatMessage, TutorContext, TutorMode, TutorSource } from '@kcna/engine';
+import type { ChatMessage, FactNote, TutorContext, TutorMode, TutorSource } from '@kcna/engine';
 
 declare const __TUTOR_API__: string;
 export const TUTOR_API: string = __TUTOR_API__;
@@ -26,6 +26,7 @@ export async function checkTutor(signal?: AbortSignal): Promise<TutorAvailabilit
 export interface StreamHandlers {
   onMeta?: (m: { sources: TutorSource[]; model: string }) => void;
   onToken: (t: string) => void;
+  onNotes?: (notes: FactNote[]) => void;
 }
 
 export class TutorError extends Error {
@@ -84,6 +85,7 @@ export async function streamTutor(
       const j = JSON.parse(data);
       if (ev === 'meta') h.onMeta?.(j);
       else if (ev === 'token') h.onToken(j.t);
+      else if (ev === 'notes') h.onNotes?.(j.notes);
       else if (ev === 'error') throw new TutorError(j.code, j.message);
       else if (ev === 'done') return;
     }

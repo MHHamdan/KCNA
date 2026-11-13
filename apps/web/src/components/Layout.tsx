@@ -117,6 +117,12 @@ export function Layout({ children }: { children: ReactNode }) {
   const loc = useLocation();
   useEffect(() => {
     applyTheme(theme);
+    if (theme !== 'system') return;
+    // follow OS light/dark changes while the app is open
+    const mq = window.matchMedia('(prefers-color-scheme: dark)');
+    const onChange = () => applyTheme('system');
+    mq.addEventListener('change', onChange);
+    return () => mq.removeEventListener('change', onChange);
   }, [theme]);
   useEffect(() => {
     window.scrollTo(0, 0);

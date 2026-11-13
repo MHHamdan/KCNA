@@ -129,10 +129,15 @@ export const SYSTEM_RULES = `You are the KCNA Tutor inside the KCNA Interactive 
 Rules:
 - Ground answers in the REFERENCE MATERIAL supplied with the question; cite it inline as [1], [2]. If the material does not cover something, say so and answer cautiously from general Kubernetes knowledge, marking it "(general knowledge — verify in the docs)".
 - Never invent kubectl commands, flags, API fields or documentation links. Only mention URLs that appear in the reference material.
-- Be precise about Kubernetes terms (e.g. a container restart inside a Pod is not a Pod replacement; Secrets are base64-encoded, not encrypted, by default).
+- Prefer the reference material over your own memory whenever they differ.
+- Be precise about these frequently confused facts:
+  * When a container crashes, the kubelet restarts that container in place inside the same Pod (same Pod name and IP; RESTARTS increases; repeated crashes show CrashLoopBackOff). Files in the container's writable layer are lost on restart; only volumes persist. A controller creates a replacement Pod only when the Pod object is deleted or evicted, or its node is lost.
+  * Roll back a Deployment with \`kubectl rollout undo deployment/<name>\`; deleting a Deployment deletes its Pods.
+  * Secrets are base64-encoded, not encrypted, by default.
+  * The scheduler only assigns Pods to nodes; the kubelet starts containers.
 - When something goes beyond the KCNA exam, label it "(beyond KCNA)".
 - If an AUTHORITATIVE ANSWER is provided, it is correct. Never contradict it; explain it.
-- Say when you are uncertain. Keep answers focused: usually under 250 words. Use short paragraphs, bullet lists and fenced code blocks.
+- Say when you are uncertain. Keep answers focused: usually under 200 words. Use short paragraphs, bullet lists and fenced code blocks.
 - Stay on Kubernetes, cloud-native and KCNA study topics; politely decline unrelated requests.`;
 
 export function systemPrompt(mode: TutorMode, level: TutorRequest['level']): string {
@@ -143,6 +148,25 @@ export function systemPrompt(mode: TutorMode, level: TutorRequest['level']): str
   return `${SYSTEM_RULES}\n\n${MODE_INSTRUCTIONS[mode]}\n${lvl}`;
 }
 
+/** Learner vocabulary → the terms the lessons actually use (BM25 is lexical). */
+const QUERY_EXPANSIONS: [RegExp, string][] = [
+  [/\bcrash(es|ed|ing)?\b|\bdies?\b|\bkeeps? (dying|failing)\b/i, 'container restart restartPolicy CrashLoopBackOff exits back-off kubelet'],
+  [/\broll ?back|\brevert|\bundo\b/i, 'rollout undo revision history ReplicaSet'],
+  [/\bexpose|\breach(able)?\b|\baccess (my|the) app/i, 'Service ClusterIP NodePort LoadBalancer Ingress'],
+  [/\bpersist|\bkeep (my |the )?data|\blose data|\bdata loss/i, 'PersistentVolume PersistentVolumeClaim volume storage'],
+  [/\bpermission|\bforbidden|\bnot allowed|\bwho can\b/i, 'RBAC Role RoleBinding ServiceAccount authorization'],
+  [/\bslow|\blatency/i, 'latency metrics traces observability'],
+  [/\bstuck\b|\bpending\b|\bwon'?t (start|schedule)/i, 'Pending scheduling FailedScheduling events describe'],
+  [/\bscale|\bmore (copies|replicas)|\bautoscal/i, 'replicas scale HorizontalPodAutoscaler'],
+  [/\bpassword|\bcredential|\bapi key/i, 'Secret ConfigMap'],
+  [/\bhealth ?check|\bnot ready\b/i, 'readiness liveness probe'],
+];
+
+export function expandQuery(q: string): string {
+  const extra = QUERY_EXPANSIONS.filter(([re]) => re.test(q)).map(([, t]) => t);
+  return extra.length ? `${q} ${extra.join(' ')}` : q;
+}
+
 /** Build the retrieval query: the latest user turn plus the previous one for follow-ups ("what about if it crashes?"). */
 export function retrievalQuery(req: TutorRequest): string {
   const users = req.messages.filter((m) => m.role === 'user');
@@ -151,7 +175,7 @@ export function retrievalQuery(req: TutorRequest): string {
   const lesson = req.context.lessonId ? lessonById(req.context.lessonId)?.title ?? '' : '';
   const q = req.context.questionId ? questionById(req.context.questionId)?.prompt ?? '' : '';
   // short follow-ups lean on the previous turn
-  return [last, last.length < 80 ? prev : '', lesson, q.slice(0, 200)].filter(Boolean).join(' ');
+  return [expandQuery(last), last.length < 80 ? prev : '', lesson, q.slice(0, 200)].filter(Boolean).join(' ');
 }
 
 export function retrieve(index: SearchIndex, req: TutorRequest): SearchHit[] {

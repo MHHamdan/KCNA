@@ -8,7 +8,8 @@ app_port: 7860
 pinned: true
 short_description: Learn, practice and prepare for the CNCF KCNA exam
 models:
-  - unsloth/Qwen3.5-2B-GGUF
+  - Qwen/Qwen3-4B-Instruct-2507
+  - unsloth/Qwen3-4B-Instruct-2507-GGUF
 ---
 
 # KCNA Interactive Learning Lab

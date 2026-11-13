@@ -30,7 +30,7 @@ test('learn: open a lesson, answer its knowledge check, complete it', async ({ p
   await page.reload();
   await expect(page.getByRole('button', { name: /Completed/ })).toBeVisible();
   await page.goto('/#/');
-  await expect(page.getByText(/^1\/\d+$/)).toBeVisible();
+  await expect(page.locator('.card', { hasText: 'hands-on labs done' }).getByText(/^1\/\d+$/)).toBeVisible();
 });
 
 test('ask AI: contextual question and a follow-up keep conversation history', async ({ page }) => {

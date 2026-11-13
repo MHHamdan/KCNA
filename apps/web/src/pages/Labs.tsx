@@ -21,7 +21,7 @@ export function LabsPage() {
       <div className="card mb-6 text-sm">
         <p className="font-semibold">Set up once</p>
         <p className="mt-1 text-slate-600 dark:text-slate-400">
-          Install Docker (or Podman), <a className="underline" href="https://kubernetes.io/docs/tasks/tools/" target="_blank" rel="noopener noreferrer">kubectl</a> and <a className="underline" href="https://kind.sigs.k8s.io/docs/user/quick-start/" target="_blank" rel="noopener noreferrer">kind</a>. No cloud account or payment is required. Prefer a browser? <a className="underline" href="https://killercoda.com/playgrounds" target="_blank" rel="noopener noreferrer">Killercoda playgrounds</a> offer free time-limited clusters (terms may change).
+          Install Docker (or Podman), <a className="underline" href="https://kubernetes.io/docs/tasks/tools/" target="_blank" rel="noopener noreferrer">kubectl</a> and <a className="underline" href="https://kind.sigs.k8s.io/docs/user/quick-start/" target="_blank" rel="noopener noreferrer">kind</a>. No cloud account or payment is required. Expected outputs are approximate and these walkthroughs have not yet been machine-verified on every kind version — if a step differs, paste the output into the tutor or open a GitHub issue. Prefer a browser? <a className="underline" href="https://killercoda.com/playgrounds" target="_blank" rel="noopener noreferrer">Killercoda playgrounds</a> offer free time-limited clusters (terms may change).
         </p>
       </div>
       <div className="grid gap-3 md:grid-cols-2">

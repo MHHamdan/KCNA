@@ -31,7 +31,7 @@ export function ExplorePage() {
       <div className="mt-4 grid gap-4 lg:grid-cols-[1fr_320px]">
         <div className="card">
           {tab === 'explore' ? (
-            <DiagramSvg spec={CLUSTER} selected={sel} onSelect={setSel} highlight={[sel]} title="Kubernetes cluster architecture" />
+            <DiagramSvg spec={CLUSTER} selected={sel} onSelect={setSel} title="Kubernetes cluster architecture" />
           ) : (
             <StepPlayer spec={CLUSTER} steps={SEQUENCES[tab].steps} title={SEQUENCES[tab].title} />
           )}

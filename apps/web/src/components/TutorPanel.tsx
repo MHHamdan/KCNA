@@ -4,7 +4,9 @@ import { contentIndex, TUTOR_MODES, type TutorMode } from '@kcna/engine';
 import { lessonById, questionById } from '@kcna/content';
 import { useTutor, type TutorMessage } from '../lib/tutorContext';
 import { updateProgress, useProgress } from '../lib/store';
-import { Md } from './Md';
+import { Md, MdInline } from './Md';
+
+const MdInlineSafe = ({ text }: { text: string }) => <MdInline>{text}</MdInline>;
 import { Icon } from './Icon';
 
 export const MODE_INFO: Record<TutorMode, { label: string; hint: string }> = {
@@ -83,6 +85,21 @@ function Bubble({ m, last }: { m: TutorMessage; last: boolean }) {
             <strong>AI tutor unavailable:</strong> {m.error.message}
           </p>
           <Fallback question={m.error.question} />
+        </div>
+      )}
+      {m.notes && m.notes.length > 0 && (
+        <div className="mt-2 rounded-lg border border-emerald-300 bg-emerald-50 p-3 text-xs dark:border-emerald-500/40 dark:bg-emerald-500/10" data-testid="fact-notes">
+          <p className="font-semibold text-emerald-900 dark:text-emerald-200">Verified correction (from the course content)</p>
+          <ul className="mt-1 space-y-1">
+            {m.notes.map((n) => (
+              <li key={n.id}>
+                <MdInlineSafe text={n.correction} />{' '}
+                <a className="underline" href={`#/lessons/${n.lessonId}`}>
+                  Lesson
+                </a>
+              </li>
+            ))}
+          </ul>
         </div>
       )}
       {m.sources && m.sources.length > 0 && m.content && (

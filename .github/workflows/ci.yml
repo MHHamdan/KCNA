@@ -22,6 +22,11 @@ jobs:
         with:
           node-version: 22
           cache: npm
+      - name: Secret scan (tracked files)
+        run: |
+          if git ls-files -z | xargs -0 grep -nIE 'hf_[A-Za-z0-9]{30,}|gh[opsu]_[A-Za-z0-9]{30,}|-----BEGIN [A-Z ]*PRIVATE KEY|AKIA[0-9A-Z]{16}'; then
+            echo "::error::Possible credential committed"; exit 1
+          fi
       - run: npm ci
       - run: npm run lint
       - run: npm run typecheck

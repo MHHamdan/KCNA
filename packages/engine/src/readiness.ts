@@ -54,7 +54,8 @@ export function objectiveMastery(attempts: Attempt[], now = Date.now()): Record<
       attempts: mine.length,
       distinct: new Set(mine.map((a) => a.qid)).size,
       mean,
-      lower: Math.max(0, mean - sd),
+      // no evidence → no credit (the prior alone must not raise mastery)
+      lower: mine.length ? Math.max(0, mean - sd) : 0,
       evidence: ww,
     };
   }

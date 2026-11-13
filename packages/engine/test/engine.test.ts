@@ -27,6 +27,7 @@ import {
   selectExamQuestions,
   validateTutorRequest,
   cleanModelOutput,
+  factCheck,
   checkYamlChallenge,
   type Attempt,
   type ExamRecord,
@@ -150,6 +151,11 @@ describe('mastery and readiness', () => {
     const old = objectiveMastery(attempts('kf-core', 20, 0, now - 120 * DAY), now)['kf-core'];
     const fresh = objectiveMastery(attempts('kf-core', 20, 0, now), now)['kf-core'];
     expect(old.lower).toBeLessThan(fresh.lower);
+  });
+  it('gives zero mastery and zero index with no evidence', () => {
+    const r = computeReadiness(emptyProgress());
+    expect(r.index).toBe(0);
+    expect(Object.values(r.domains).every((d) => d === 0)).toBe(true);
   });
   it('does not call a learner ready for completing lessons only', () => {
     const p = emptyProgress();
@@ -363,6 +369,12 @@ describe('AI tutor protocol', () => {
     expect(hits.length).toBeGreaterThan(0);
     expect(hits.some((h) => h.doc.lessonId === 'services')).toBe(true);
   });
+  it('expands learner vocabulary so follow-ups find the right lesson', () => {
+    const req = { mode: 'explain', level: 'beginner', context: {}, messages: [{ role: 'user', content: 'Why do we need a Deployment then?' }, { role: 'assistant', content: '…' }, { role: 'user', content: 'What happens if the Pod crashes?' }] } as TutorRequest;
+    expect(retrieve(contentIndex(), req).map((h) => h.doc.lessonId)).toContain('pods');
+    const rb = { mode: 'explain', level: 'beginner', context: {}, messages: [{ role: 'user', content: 'How do I roll back a bad release?' }] } as TutorRequest;
+    expect(retrieve(contentIndex(), rb).map((h) => h.doc.lessonId)).toContain('rollouts-and-deployment-strategies');
+  });
   it('boosts the current lesson in retrieval and returns cited sources', () => {
     const v = validateTutorRequest({ mode: 'explain', messages: [{ role: 'user', content: 'what happens on failure?' }], context: { lessonId: 'health-probes' } });
     expect(v.ok).toBe(true);
@@ -405,5 +417,27 @@ describe('AI tutor protocol', () => {
   it('strips reasoning traces from model output', () => {
     expect(cleanModelOutput('<think>hmm</think>A Pod is…')).toBe('A Pod is…');
     expect(cleanModelOutput('<think>still thinking')).toBe('');
+  });
+});
+
+describe('fact guard', () => {
+  it('flags known misconceptions', () => {
+    expect(factCheck('If the Pod crashes, the Deployment controller creates a new Pod with the same spec.').map((n) => n.id)).toContain('crash-means-new-pod');
+    expect(factCheck('No data loss: the data inside the container is preserved after a restart.').map((n) => n.id)).toContain('container-restart-data');
+    expect(factCheck('To roll back, simply delete the Deployment and re-apply.').map((n) => n.id)).toContain('rollback-by-delete');
+    expect(factCheck('Secrets are encrypted by default in etcd.').map((n) => n.id)).toContain('secrets-encrypted');
+    expect(factCheck('The scheduler starts the containers on the node.').map((n) => n.id)).toContain('scheduler-starts-containers');
+    expect(factCheck('kubectl run nginx creates a Deployment.').map((n) => n.id)).toContain('kubectl-run-deployment');
+  });
+  it('does not flag correct or negated statements', () => {
+    const ok = [
+      'The kubelet restarts the crashed container in place; the Pod is not replaced.',
+      'Do not delete the Deployment to roll back; use kubectl rollout undo.',
+      'Secrets are not encrypted by default, only base64-encoded.',
+      'The scheduler assigns Pods to nodes; the kubelet starts containers.',
+      'kubectl run creates a single Pod.',
+      'Data in a PersistentVolume survives Pod replacement.',
+    ];
+    for (const t of ok) expect(factCheck(t), t).toEqual([]);
   });
 });
