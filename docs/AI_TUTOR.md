@@ -77,7 +77,7 @@ The tutor never invents a reply when the model is unavailable. The fallback is c
 | Message length | 2,000 chars (user) / 4,000 (assistant history) |
 | History | last 12 turns |
 | Output | 450 tokens |
-| Timeout | 180 s |
+| Timeout | 300 s |
 | Rate | 20 requests / 10 min per client IP |
 | Concurrency | 1 generation at a time, queue of 4 |
 

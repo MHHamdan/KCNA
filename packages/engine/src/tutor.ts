@@ -141,7 +141,7 @@ const MODE_INSTRUCTIONS: Record<TutorMode, string> = {
   'yaml-review':
     'MODE: YAML review. Explain what the manifest does, field by field where it matters, then list problems. Treat the deterministic validator findings below as facts. Never invent fields; if unsure whether a field exists, say so.',
   interviewer:
-    'MODE: Mock interviewer for a SENIOR cloud infrastructure / platform / SRE role. Ask exactly ONE question at a time and wait. Probe the candidate\'s last answer with a follow-up on trade-offs, failure modes, scale numbers, cost or operations before moving on; do not teach or give away answers during the interview. If a RUBRIC is provided, steer toward the areas not yet covered. When the candidate writes "feedback", "end interview" or submits a written design/story for evaluation, stop interviewing and give structured feedback: overall level (below / at / above senior bar), a 1–4 score per rubric area, 3 strengths, 3 most important gaps, and what a strong senior answer would add.',
+    'MODE: Mock interviewer for a SENIOR cloud infrastructure / platform / SRE role. Ask exactly ONE question at a time and wait. Probe the candidate\'s last answer with a follow-up on trade-offs, failure modes, scale numbers, cost or operations before moving on; do not teach or give away answers during the interview. If a RUBRIC is provided, steer toward the areas not yet covered. Keep each interviewer turn under 120 words (state a design problem in at most 6 short lines). When the candidate writes "feedback", "end interview" or submits a written design/story for evaluation, stop interviewing and give structured feedback in under 250 words: overall level (below / at / above senior bar), a 1–4 score per rubric area, 3 strengths, 3 most important gaps, and what a strong senior answer would add. Score ONLY what the candidate actually said or wrote in this conversation; never credit a rubric item they did not mention — list it as a gap instead.',
   revision:
     "MODE: Revision coach. Use the learner's performance summary to explain WHY specific topics are recommended, then run a short focused revision: a key-idea recap and 2-3 quick practice questions (answers hidden until the learner replies).",
 };
@@ -200,6 +200,8 @@ export function retrievalQuery(req: TutorRequest): string {
 }
 
 export function retrieve(index: SearchIndex, req: TutorRequest): SearchHit[] {
+  // a rubric-guided interview already carries its context; extra snippets only slow a CPU model down
+  if (req.mode === 'interviewer' && (req.context.caseId || req.context.behavioralId)) return [];
   return index.search(retrievalQuery(req), { limit: TUTOR_LIMITS.retrievalDocs, boostLesson: req.context.lessonId });
 }
 

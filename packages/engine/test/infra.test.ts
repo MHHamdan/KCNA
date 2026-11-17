@@ -81,8 +81,11 @@ describe('interviewer mode', () => {
     const v = validateTutorRequest({ mode: 'interviewer', messages: [{ role: 'user', content: 'Grade my design' }], context: { caseId: c.id, answer: 'Two regions, active-active…' } });
     expect(v.ok).toBe(true);
     if (!v.ok) return;
-    const { messages } = buildChat(v.value, retrieve(contentIndex(), v.value));
+    const hits = retrieve(contentIndex(), v.value);
+    expect(hits).toEqual([]); // the rubric is the context; no extra snippets
+    const { messages } = buildChat(v.value, hits);
     expect(messages[0].content).toMatch(/Mock interviewer/);
+    expect(messages[0].content).toMatch(/never credit a rubric item they did not mention/);
     const last = messages.at(-1)!.content;
     expect(last).toContain(`SYSTEM DESIGN CASE: ${c.title}`);
     expect(last).toContain('RUBRIC (authoritative');

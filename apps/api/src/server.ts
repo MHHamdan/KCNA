@@ -35,7 +35,7 @@ export function configFromEnv(env = process.env): ServerConfig {
     concurrency: Number(env.TUTOR_CONCURRENCY ?? 1),
     maxQueue: Number(env.TUTOR_MAX_QUEUE ?? 4),
     maxTokens: Number(env.TUTOR_MAX_TOKENS ?? 450),
-    timeoutMs: Number(env.TUTOR_TIMEOUT_MS ?? 180_000),
+    timeoutMs: Number(env.TUTOR_TIMEOUT_MS ?? 300_000),
   };
 }
 

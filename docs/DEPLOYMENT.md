@@ -58,7 +58,7 @@ python -c "from huggingface_hub import HfApi; HfApi().upload_folder(repo_id='MHa
 | `TUTOR_PROVIDER` | `llamacpp` | `llamacpp`, `hf-router` (needs `HF_TOKEN` secret) or `none` |
 | `ALLOWED_ORIGINS` | `https://mhhamdan.github.io` | CORS allow-list (comma-separated) |
 | `RATE_LIMIT_MAX` / `RATE_LIMIT_WINDOW_MS` | `20` / `600000` | Per-client tutor limit |
-| `TUTOR_MAX_TOKENS` / `TUTOR_TIMEOUT_MS` | `450` / `180000` | Output and time limits |
+| `TUTOR_MAX_TOKENS` / `TUTOR_TIMEOUT_MS` | `450` / `300000` | Output and time limits |
 
 ## Troubleshooting deployments
 

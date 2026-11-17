@@ -23,7 +23,7 @@ Rules enforced by this repo:
 | Threat | Mitigation |
 |---|---|
 | Cost abuse (someone runs up a bill) | The default provider is a local llama.cpp model on free `cpu-basic` hardware, so there is **no per-request cost** to abuse. The optional `hf-router` provider has a hard monthly request cap (`HF_ROUTER_MONTHLY_REQUEST_CAP`, default 300) and is off by default. |
-| Resource exhaustion / DoS | Body ≤ 32 KB; message ≤ 2,000 chars; ≤ 12 history turns; YAML ≤ 6,000 chars; `max_tokens` 450; 180 s timeout; 20 requests per client IP per 10 min; 1 concurrent generation with a queue of 4 (`503 busy` beyond that). A determined attacker can still keep the free CPU busy, which degrades the tutor but not the rest of the app. |
+| Resource exhaustion / DoS | Body ≤ 32 KB; message ≤ 2,000 chars; ≤ 12 history turns; YAML ≤ 6,000 chars; `max_tokens` 450; 300 s timeout; 20 requests per client IP per 10 min; 1 concurrent generation with a queue of 4 (`503 busy` beyond that). A determined attacker can still keep the free CPU busy, which degrades the tutor but not the rest of the app. |
 | Using the tutor as a general proxy | The model is local and every request is wrapped in a Kubernetes-tutor system prompt, so there is no upstream API to proxy to. |
 | Cross-site use from other websites | CORS allows only `https://mhhamdan.github.io` plus same-origin. Other origins get `403`. (CORS stops browsers, not scripts; the rate limits handle scripts.) |
 | Prompt injection via learner input | The model has no tools, secrets or actions, so the worst case is a wrong or off-topic answer. Authoritative quiz answers are injected server-side from the content bank, not taken from the client. Quiz and lesson IDs are validated against the content. |
