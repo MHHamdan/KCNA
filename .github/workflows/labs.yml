@@ -1,0 +1,32 @@
+name: Verify labs on kind
+
+# Runs every "full" lab's commands against a real Kubernetes cluster (kind),
+# so the walkthroughs learners copy-paste are known to work.
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '17 6 * * 1' # weekly, Monday
+  push:
+    branches: [main]
+    paths: ['packages/content/src/labs.ts', 'scripts/run-labs.ts', '.github/workflows/labs.yml']
+
+permissions:
+  contents: read
+
+jobs:
+  labs:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - uses: helm/kind-action@v1
+        with:
+          cluster_name: kcna
+      - run: kubectl get nodes -o wide
+      - name: Run full labs
+        run: npx tsx scripts/run-labs.ts
