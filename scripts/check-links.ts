@@ -1,6 +1,6 @@
 // Verifies every external reference URL in the content resolves (no invented links).
 // Usage: npm run check:links   (exits 1 if any link is broken)
-import { comparisons, ecosystemProjects, labs, lessons, questions, resources, troubleshootingScenarios } from '@kcna/content';
+import { comparisons, designCases, ecosystemProjects, infraLessons, infraQuestions, infraResources, INFRA_CORE_REFERENCES, labs, lessons, questions, resources, troubleshootingScenarios } from '@kcna/content';
 
 const urls = new Map<string, string[]>();
 const add = (url: string, where: string) => urls.set(url, [...(urls.get(url) ?? []), where]);
@@ -10,6 +10,11 @@ for (const l of labs) l.references.forEach((r) => add(r.url, `lab:${l.id}`));
 for (const s of troubleshootingScenarios) s.references.forEach((r) => add(r.url, `troubleshoot:${s.id}`));
 for (const r of resources) add(r.url, 'resources');
 for (const p of ecosystemProjects) add(p.url, `ecosystem:${p.name}`);
+for (const l of infraLessons) l.references.forEach((r) => add(r.url, `infra-lesson:${l.id}`));
+for (const q of infraQuestions) q.references.forEach((r) => add(r.url, `infra-question:${q.id}`));
+for (const c of designCases) c.references.forEach((r) => add(r.url, `design:${c.id}`));
+for (const r of infraResources) add(r.url, 'infra-resources');
+for (const r of INFRA_CORE_REFERENCES) add(r.url, 'infra-core');
 void comparisons;
 
 async function check(url: string): Promise<number> {

@@ -22,8 +22,9 @@ export type ObjectiveId =
  * kcna       – inside the KCNA exam scope
  * foundation – prerequisite knowledge that the exam assumes
  * beyond     – deeper CKA/CKAD/DevOps material, not required for KCNA
+ * senior     – cloud infrastructure senior-interview track
  */
-export type Scope = 'kcna' | 'foundation' | 'beyond';
+export type Scope = 'kcna' | 'foundation' | 'beyond' | 'senior';
 
 export interface Reference {
   title: string;
@@ -53,12 +54,24 @@ export interface Stage {
 /** Text fields accept a small, safe Markdown subset: paragraphs, **bold**, `code`, - lists, ``` fences. */
 export type Md = string;
 
-export interface Lesson {
+/** How a senior engineer is expected to discuss this topic in an interview. */
+export interface InterviewAngle {
+  /** what a strong senior answer covers (trade-offs, numbers, failure modes) */
+  seniorAnswer: Md;
+  /** follow-up questions interviewers commonly ask, with concise model answers */
+  followUps: { q: string; a: Md }[];
+  /** statements or habits that signal a junior / weak answer */
+  redFlags: string[];
+  /** numbers and rules of thumb worth memorising */
+  numbers?: string[];
+}
+
+export interface Lesson<O extends string = ObjectiveId> {
   id: string;
   title: string;
   stage: number;
   order: number;
-  objectives: ObjectiveId[];
+  objectives: O[];
   scope: Scope;
   estMinutes: number;
   summary: string;
@@ -75,6 +88,8 @@ export interface Lesson {
   keyTerms: string[];
   /** "beyond the exam" depth note, clearly marked as optional. */
   deeper?: Md;
+  /** senior interview preparation (infrastructure track) */
+  interview?: InterviewAngle;
   references: Reference[];
 }
 
@@ -91,10 +106,10 @@ export type DiagramId =
   | 'gitops-flow'
   | 'container-layers';
 
-export interface Question {
+export interface Question<D extends string = DomainId, O extends string = ObjectiveId> {
   id: string;
-  domain: DomainId;
-  objective: ObjectiveId;
+  domain: D;
+  objective: O;
   lessonId: string;
   difficulty: 1 | 2 | 3;
   /** single = exactly one correct; multi = "select all that apply" (2+ correct). */
@@ -110,11 +125,11 @@ export interface Question {
   tags: string[];
 }
 
-export interface Flashcard {
+export interface Flashcard<O extends string = ObjectiveId> {
   id: string;
   front: Md;
   back: Md;
-  objective: ObjectiveId;
+  objective: O;
   lessonId: string;
 }
 
@@ -241,14 +256,14 @@ export interface DecisionGame {
   explanation: Md;
 }
 
-export interface Resource {
+export interface Resource<O extends string = ObjectiveId> {
   title: string;
   url: string;
   provider: string;
   topic: string;
   cost: 'free' | 'free-tier' | 'free-audit';
   difficulty: 'beginner' | 'intermediate' | 'advanced';
-  objectives: ObjectiveId[];
+  objectives: O[];
   sequence: number; // suggested study order
   note?: string;
 }
@@ -261,4 +276,102 @@ export interface EcosystemProject {
   purpose: string;
   examRelevance: 'core' | 'recognize' | 'optional';
   url: string;
+}
+
+// ---------------- Cloud Infrastructure senior interview track ----------------
+
+export type InfraDomainId =
+  | 'networking'
+  | 'compute'
+  | 'storage-data'
+  | 'distributed'
+  | 'reliability'
+  | 'security'
+  | 'automation'
+  | 'observability'
+  | 'architecture-cost'
+  | 'interview-craft';
+
+export type InfraTopicId =
+  | 'net-fundamentals'
+  | 'net-cloud'
+  | 'net-edge'
+  | 'compute-models'
+  | 'compute-scaling'
+  | 'compute-platform'
+  | 'storage-types'
+  | 'data-databases'
+  | 'data-caching'
+  | 'dist-theory'
+  | 'dist-patterns'
+  | 'dist-messaging'
+  | 'rel-slo'
+  | 'rel-incidents'
+  | 'rel-resilience'
+  | 'sec-identity'
+  | 'sec-data'
+  | 'sec-supply-chain'
+  | 'auto-iac'
+  | 'auto-delivery'
+  | 'obs-signals'
+  | 'obs-performance'
+  | 'arch-frameworks'
+  | 'arch-finops'
+  | 'craft-system-design'
+  | 'craft-behavioral';
+
+export interface InfraDomain {
+  id: InfraDomainId;
+  name: string;
+  summary: string;
+  /** how often it dominates senior infra interviews */
+  importance: 'core' | 'high' | 'medium';
+  topics: InfraTopicId[];
+}
+
+export interface InfraTopic {
+  id: InfraTopicId;
+  domain: InfraDomainId;
+  name: string;
+  description: string;
+}
+
+export type InfraLesson = Lesson<InfraTopicId>;
+export type InfraQuestion = Question<InfraDomainId, InfraTopicId>;
+export type InfraFlashcard = Flashcard<InfraTopicId>;
+
+/** A system design interview case with a model answer and a grading rubric. */
+export interface DesignCase {
+  id: string;
+  title: string;
+  difficulty: 'senior' | 'staff';
+  topics: InfraTopicId[];
+  /** the prompt as an interviewer would say it */
+  prompt: Md;
+  clarifyingQuestions: string[];
+  requirements: { functional: string[]; nonFunctional: string[] };
+  /** back-of-the-envelope capacity estimates */
+  estimates: Md;
+  /** reference high-level architecture */
+  architecture: Md;
+  deepDives: { title: string; body: Md }[];
+  tradeoffs: { decision: string; options: string; choice: Md }[];
+  failureModes: { failure: string; mitigation: Md }[];
+  followUps: { q: string; a: Md }[];
+  /** what interviewers score; each signal is something a strong answer does */
+  rubric: { area: string; signals: string[] }[];
+  references: Reference[];
+}
+
+export interface BehavioralPrompt {
+  id: string;
+  theme: 'ownership' | 'incident' | 'influence' | 'ambiguity' | 'conflict' | 'mentoring' | 'failure' | 'tradeoff' | 'delivery';
+  question: string;
+  /** what the interviewer is assessing */
+  signals: string[];
+  /** how to structure a strong STAR answer for this prompt */
+  guidance: Md;
+  pitfalls: string[];
+  /** an illustrative outline (not a script) */
+  exampleOutline: Md;
 }
