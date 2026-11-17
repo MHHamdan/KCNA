@@ -63,7 +63,7 @@ const SUBCOMMANDS: Record<string, Set<string>> = {
   rollout: new Set(['status', 'history', 'undo', 'restart', 'pause', 'resume']),
   config: new Set(['get-contexts', 'current-context', 'use-context', 'view', 'set-context']),
   auth: new Set(['can-i', 'whoami']),
-  set: new Set(['image', 'resources', 'env']),
+  set: new Set(['image', 'resources', 'env', 'selector']),
 };
 
 export interface ParsedCommand {
