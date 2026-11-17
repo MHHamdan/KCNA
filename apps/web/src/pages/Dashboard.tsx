@@ -7,6 +7,7 @@ import { PageHeader } from '../components/Layout';
 import { AskAI } from '../components/TutorPanel';
 import { Bar, DOMAIN_COLORS, Stat, objectiveName, pct } from '../components/ui';
 import { STATUS_LABEL } from './Readiness';
+import { HabitStrip } from './Play';
 
 function Heatmap({ activity }: { activity: Record<string, number> }) {
   const days = Array.from({ length: 84 }, (_, i) => {
@@ -56,6 +57,8 @@ export function Dashboard() {
           </>
         }
       />
+
+      <HabitStrip />
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <Stat label="Readiness indicator" value={`${r.index}/100`} hint={STATUS_LABEL[r.status]} />

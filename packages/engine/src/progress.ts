@@ -31,6 +31,23 @@ export interface ExamRecord {
   byDomain: Partial<Record<DomainId, { correct: number; total: number }>>;
 }
 
+export interface ArenaRun {
+  at: number;
+  level: 1 | 2 | 3;
+  won: boolean;
+  score: number;
+  seconds: number;
+  hints: number;
+}
+
+export interface PlayState {
+  arena: ArenaRun[];
+  /** YYYY-MM-DD -> daily challenge result */
+  daily: Record<string, { at: number; correct: number; total: number }>;
+  /** completed mini-activities: sequences, matches, myths, explain-backs */
+  counters: Record<string, number>;
+}
+
 export interface DesignAttempt {
   at: number;
   /** rubric signals the learner confirmed their design covered ("area::signal") */
@@ -71,6 +88,8 @@ export interface Progress {
   behavioralStories: Record<string, { at: number; story: string }>;
   /** infra track: timestamps of completed AI mock interviews */
   mockInterviews: number[];
+  /** games and habit features */
+  play: PlayState;
   /** YYYY-MM-DD -> number of learning events that day */
   activity: Record<string, number>;
   prefs: Preferences;
@@ -92,6 +111,7 @@ export function emptyProgress(now = Date.now()): Progress {
     designPractice: {},
     behavioralStories: {},
     mockInterviews: [],
+    play: { arena: [], daily: {}, counters: {} },
     activity: {},
     prefs: { theme: 'system', tutorLevel: 'beginner', saveTutorHistory: false, dailyGoalMinutes: 30 },
     tutorHistory: [],
@@ -205,6 +225,17 @@ export function importProgress(json: string): Progress {
   for (const [id, b] of Object.entries(isObj(p.behavioralStories) ? p.behavioralStories : {}))
     if (isObj(b) && typeof b.at === 'number' && typeof b.story === 'string') behavioralStories[id] = { at: b.at, story: b.story.slice(0, 10000) };
   const mockInterviews = Array.isArray(p.mockInterviews) ? p.mockInterviews.filter((x): x is number => typeof x === 'number').slice(-200) : [];
+  const rawPlay = isObj(p.play) ? p.play : {};
+  const play: PlayState = {
+    arena: Array.isArray(rawPlay.arena)
+      ? rawPlay.arena.filter((r): r is ArenaRun => isObj(r) && typeof r.at === 'number' && typeof r.score === 'number').slice(-200)
+      : [],
+    daily: {},
+    counters: {},
+  };
+  for (const [d, r] of Object.entries(isObj(rawPlay.daily) ? rawPlay.daily : {}))
+    if (/^\d{4}-\d{2}-\d{2}$/.test(d) && isObj(r) && typeof r.correct === 'number' && typeof r.total === 'number') play.daily[d] = { at: Number(r.at) || 0, correct: r.correct, total: r.total };
+  for (const [k, v] of Object.entries(isObj(rawPlay.counters) ? rawPlay.counters : {})) if (typeof v === 'number' && Number.isFinite(v)) play.counters[k] = v;
   const prefs = isObj(p.prefs) ? { ...base.prefs, ...(p.prefs as Partial<Preferences>) } : base.prefs;
   const tutorHistory = Array.isArray(p.tutorHistory)
     ? (p.tutorHistory as unknown[])
@@ -226,6 +257,7 @@ export function importProgress(json: string): Progress {
     designPractice,
     behavioralStories,
     mockInterviews,
+    play,
     prefs,
     tutorHistory,
   };
@@ -236,4 +268,8 @@ export function historyCsv(p: Progress): string {
   const rows = [['timestamp', 'question_id', 'objective', 'source', 'correct']];
   for (const a of p.attempts) rows.push([new Date(a.at).toISOString(), a.qid, a.objective, a.source, String(a.correct)]);
   return rows.map((r) => r.join(',')).join('\n');
+}
+
+export function bumpCounter(p: Progress, key: string, by = 1, now = Date.now()): Progress {
+  return recordActivity({ ...p, play: { ...p.play, counters: { ...p.play.counters, [key]: (p.play.counters[key] ?? 0) + by } } }, now);
 }

@@ -18,6 +18,7 @@ import { PageHeader } from '../components/Layout';
 import { Md } from '../components/Md';
 import { AskAI } from '../components/TutorPanel';
 import { Bar, INFRA_DOMAIN_COLORS, ObjectiveChip, References, Stat, pct } from '../components/ui';
+import { HabitStrip } from './Play';
 
 const STATUS_LABEL = {
   'not-started': 'Not started',
@@ -48,6 +49,7 @@ export function InfraHome() {
           </>
         }
       />
+      <HabitStrip />
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <Stat label="Interview readiness" value={`${r.index}/100`} hint={STATUS_LABEL[r.status]} />
         <Stat label="Lessons" value={`${read}/${infraLessons.length}`} hint="with interview angles" />

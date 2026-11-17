@@ -203,7 +203,7 @@ test('visualizers: step through the kubectl apply sequence', async ({ page }) =>
 
 test('accessibility: no serious violations on key pages', async ({ page }) => {
   await fresh(page);
-  for (const path of ['/#/', '/#/lessons/pods', '/#/exam', '/#/readiness', '/#/terminal', '/#/infra', '/#/infra/lessons/infra-rel-slo', '/#/infra/design/sd-payments-dr', '/#/infra/behavioral', '/#/infra/readiness']) {
+  for (const path of ['/#/', '/#/lessons/pods', '/#/exam', '/#/readiness', '/#/terminal', '/#/infra', '/#/infra/lessons/infra-rel-slo', '/#/infra/design/sd-payments-dr', '/#/infra/behavioral', '/#/infra/readiness', '/#/feed', '/#/arena', '/#/map', '/#/games', '/#/explain', '/#/daily']) {
     await page.goto(path);
     await page.waitForLoadState('networkidle');
     const r = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa']).analyze();
@@ -290,4 +290,98 @@ test('senior infra track: lesson interview angle, questions, design rubric, STAR
   await expect(page.getByText('1 solid design(s)')).toBeVisible();
   await expect(page.getByText('1 completed')).toBeVisible();
   await expect(page.getByText(/1 story\/stories/)).toBeVisible();
+});
+
+test('play: Break-Fix Arena round is winnable with kubectl', async ({ page }) => {
+  await fresh(page);
+  await page.goto('/#/arena');
+  await page.getByRole('button', { name: 'Start level 1' }).click();
+  await expect(page.getByLabel('Cluster map')).toBeVisible();
+  const input = page.getByLabel('kubectl command');
+  await input.fill('kubectl get pods');
+  await input.press('Enter');
+  await expect(page.getByRole('log')).toContainText('web-');
+  // wait for chaos, then follow the hints until the fix is revealed and apply it
+  await expect(page.getByText(/PAGER:/)).toBeVisible({ timeout: 15_000 });
+  for (let i = 0; i < 3; i++) {
+    await input.fill('hint');
+    await input.press('Enter');
+  }
+  const hint = (await page.getByRole('log').locator('pre', { hasText: '💡' }).last().innerText()).match(/`(kubectl[^`]+)`/g) ?? [];
+  for (const h of hint) {
+    await input.fill(h.replace(/`/g, '').replace('<web-pod>', ''));
+    await input.press('Enter');
+  }
+  if (/uncordon node-2/.test(hint.join(' '))) {
+    await input.fill('kubectl uncordon node-3');
+    await input.press('Enter');
+  }
+  await expect(page.getByText(/Service restored — score \d+/)).toBeVisible({ timeout: 60_000 });
+  await page.getByRole('button', { name: 'Menu' }).click();
+  await expect(page.getByText(/1 round\(s\) won so far/)).toBeVisible();
+});
+
+test('play: endless feed, daily challenge, mini-games, explain-back and skill map', async ({ page }) => {
+  await fresh(page);
+  await page.goto('/#/feed');
+  await expect(page.getByRole('heading', { name: /Endless feed/ })).toBeVisible();
+  for (let i = 0; i < 6; i++) {
+    const before = await page.getByText(/This session:/).innerText();
+    // answer whatever card appears
+    const q = page.getByTestId('question-card');
+    if (await q.isVisible()) {
+      await q.locator('label').first().click();
+      if ((await q.locator('input').first().getAttribute('type')) === 'checkbox') await q.locator('label').nth(1).click();
+      await q.getByRole('button', { name: 'Check answer' }).click();
+      await page.getByRole('button', { name: 'Next →' }).click();
+    } else if (await page.getByRole('button', { name: 'Reveal reality' }).isVisible()) {
+      await page.getByRole('button', { name: 'Reveal reality' }).click();
+      await page.getByRole('button', { name: /I knew it/ }).click();
+    } else if (await page.getByText('Recall it, then tap to reveal').isVisible()) {
+      await page.getByText('Recall it, then tap to reveal').click();
+      await page.getByRole('button', { name: 'Good' }).click();
+    } else if (await page.getByTestId('sequence-game').isVisible()) {
+      await page.getByRole('button', { name: 'Check order' }).click();
+      await page.getByRole('button', { name: 'Next →' }).click();
+    } else {
+      const terms = page.getByTestId('match-game').locator('.grid > div').first().locator('button');
+      const defs = page.getByTestId('match-game').locator('.grid > div').nth(1).locator('button');
+      const n = await terms.count();
+      for (let t = 0; t < n; t++)
+        for (let d = 0; d < n; d++) {
+          if (await terms.nth(t).isDisabled()) break;
+          await terms.nth(t).click();
+          if (!(await defs.nth(d).isDisabled())) await defs.nth(d).click();
+        }
+      await page.getByRole('button', { name: 'Next →' }).click();
+    }
+    await expect(page.getByText(/This session:/)).not.toHaveText(before);
+  }
+
+  await page.goto('/#/daily');
+  for (let i = 0; i < 5; i++) {
+    const q = page.getByTestId('question-card');
+    await q.locator('label').first().click();
+    if ((await q.locator('input').first().getAttribute('type')) === 'checkbox') await q.locator('label').nth(1).click();
+    await q.getByRole('button', { name: 'Check answer' }).click();
+    await page.getByRole('button', { name: 'Next →' }).click();
+  }
+  await page.getByRole('button', { name: 'Check order' }).click();
+  await expect(page.getByText(/Daily challenge saved/)).toBeVisible();
+
+  await page.goto('/#/games');
+  await page.getByRole('button', { name: 'Check order' }).click();
+  await expect(page.getByTestId('sequence-game').getByRole('status')).toBeVisible();
+
+  await page.goto('/#/explain');
+  await page.getByLabel('Your explanation').fill('A short explanation in my own words about how this works, why it exists, what problem it solves and what people often get wrong about it in practice, plus a concrete example from a real cluster I have operated.');
+  await page.getByRole('button', { name: 'Check my explanation' }).click();
+  await expect(page.getByText(/Key terms covered: \d+%/)).toBeVisible();
+
+  await page.goto('/#/map');
+  await expect(page.getByRole('group', { name: /Skill constellation/ })).toBeVisible();
+  await expect(page.getByText('First steps')).toBeVisible();
+  await page.goto('/#/');
+  await expect(page.getByText(/-day streak/)).toBeVisible();
+  await expect(page.getByRole('link', { name: '✓ Daily done' })).toBeVisible();
 });

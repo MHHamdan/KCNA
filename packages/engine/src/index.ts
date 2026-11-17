@@ -9,3 +9,5 @@ export * from './yamlcheck';
 export * from './tutor';
 export * from './factguard';
 export * from './infraReadiness';
+export * from './arena';
+export * from './gamify';

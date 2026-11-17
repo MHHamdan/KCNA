@@ -8,6 +8,17 @@ import { applyTheme } from '../lib/theme';
 
 const NAV: { group: string; items: { to: string; label: string; icon: string }[] }[] = [
   {
+    group: 'Play & habit',
+    items: [
+      { to: '/feed', label: '∞ Endless feed', icon: 'spark' },
+      { to: '/daily', label: 'Daily challenge', icon: 'flag' },
+      { to: '/arena', label: 'Break-Fix Arena', icon: 'wrench' },
+      { to: '/games', label: 'Mini-games', icon: 'game' },
+      { to: '/explain', label: 'Explain it back', icon: 'book' },
+      { to: '/map', label: 'Skill map & badges', icon: 'target' },
+    ],
+  },
+  {
     group: 'Learn',
     items: [
       { to: '/', label: 'Dashboard', icon: 'home' },

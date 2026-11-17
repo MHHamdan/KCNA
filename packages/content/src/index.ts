@@ -23,6 +23,7 @@ export { terminalChallenges } from './practice/terminal';
 export { yamlChallenges } from './practice/yaml';
 export { troubleshootingScenarios } from './practice/troubleshooting';
 export { decisionGames } from './practice/decisions';
+export { sequencePuzzles, type SequencePuzzle } from './sequences';
 
 export const lessons: Lesson[] = [...lessonsA, ...lessonsB, ...lessonsC].sort(
   (a, b) => a.stage - b.stage || a.order - b.order,

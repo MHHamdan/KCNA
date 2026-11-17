@@ -127,3 +127,21 @@ describe('behavioural, flashcards, resources', () => {
     }
   });
 });
+
+import { sequencePuzzles, anyLessonById } from '../src';
+describe('step-ordering puzzles', () => {
+  it('are well-formed and cover both tracks', () => {
+    expect(sequencePuzzles.length).toBeGreaterThanOrEqual(20);
+    expect(new Set(sequencePuzzles.map((s) => s.id)).size).toBe(sequencePuzzles.length);
+    expect(sequencePuzzles.filter((s) => s.track === 'kcna').length).toBeGreaterThanOrEqual(8);
+    expect(sequencePuzzles.filter((s) => s.track === 'infra').length).toBeGreaterThanOrEqual(8);
+    for (const s of sequencePuzzles) {
+      expect(s.steps.length, s.id).toBeGreaterThanOrEqual(4);
+      expect(s.steps.length, s.id).toBeLessThanOrEqual(7);
+      expect(new Set(s.steps).size, s.id).toBe(s.steps.length);
+      for (const st of s.steps) expect(st.length, `${s.id}: ${st}`).toBeLessThanOrEqual(110);
+      expect(anyLessonById(s.lessonId), `${s.id} lesson ${s.lessonId}`).toBeDefined();
+      expect(s.explanation.length).toBeGreaterThan(40);
+    }
+  });
+});

@@ -27,6 +27,16 @@ An interactive study platform for the CNCF **Kubernetes and Cloud Native Associa
 | Progress | Stored locally in your browser; export/import JSON, CSV study history, reset. |
 | Phone | Installable (Add to Home Screen) and works offline after the first visit — everything except the AI tutor. |
 
+## Play & habit: never stop learning
+
+- **Break-Fix Arena:** a live simulated cluster where chaos injects real failures while you restore service with kubectl, racing an error budget.
+- **∞ Endless feed:** an adaptive, never-ending, interleaved mix of spaced reviews, weak topics, myth busters, step puzzles and matching.
+- **Daily challenge:** the same five-minute challenge for everyone each day.
+- **Mini-games and explain-it-back:** step ordering, matching pairs, and the Feynman technique.
+- **Motivation from evidence:** XP and levels, streaks, 22 achievements, a skill constellation and a calendar reminder.
+
+See [docs/PLAY.md](docs/PLAY.md).
+
 ## Cloud Infrastructure — Senior Interview Prep (separate track)
 
 A standalone track at `#/infra` for senior and staff cloud infrastructure, platform and SRE interviews. It has:
@@ -76,6 +86,7 @@ The tutor needs an OpenAI-compatible model server at `LLAMA_URL` (default `http:
 - [EXAM_READINESS](docs/EXAM_READINESS.md): the readiness formula
 - [CONTENT_GUIDELINES](docs/CONTENT_GUIDELINES.md): how to add lessons, questions, labs and challenges
 - [INFRA_TRACK](docs/INFRA_TRACK.md): the senior cloud infrastructure interview track
+- [PLAY](docs/PLAY.md): Arena, endless feed, daily challenge, games, XP, streaks and the skill map
 
 ## Cost
 

@@ -1,5 +1,5 @@
 import { useRef, useState } from 'react';
-import { emptyProgress, exportProgress, historyCsv, importProgress, ImportError } from '@kcna/engine';
+import { emptyProgress, exportProgress, historyCsv, importProgress, ImportError, studyReminderIcs } from '@kcna/engine';
 import { download, setProgress, storageAvailable, updateProgress, useProgress } from '../lib/store';
 import { useTutor } from '../lib/tutorContext';
 import { TUTOR_API } from '../lib/tutor';
@@ -13,6 +13,7 @@ export function SettingsPage() {
   const tutor = useTutor();
   const fileRef = useRef<HTMLInputElement>(null);
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
+  const [reminder, setReminder] = useState('19:30');
   const stamp = new Date().toISOString().slice(0, 10);
   const setPref = <K extends keyof typeof p.prefs>(k: K, v: (typeof p.prefs)[K]) => updateProgress((pr) => ({ ...pr, prefs: { ...pr.prefs, [k]: v } }));
 
@@ -74,6 +75,20 @@ export function SettingsPage() {
             }}
           >
             Reset progress
+          </button>
+        </div>
+      </section>
+
+      <section className="card space-y-3" aria-labelledby="habit">
+        <h2 id="habit" className="font-semibold">Never stop: daily reminder</h2>
+        <p className="text-sm text-slate-600 dark:text-slate-400">Download a recurring daily calendar event (works with Google Calendar, Apple Calendar and Outlook). No account or notifications server needed.</p>
+        <div className="flex flex-wrap items-center gap-2">
+          <label className="text-sm" htmlFor="reminder-time">
+            Time
+          </label>
+          <input id="reminder-time" type="time" className="input w-auto" value={reminder} onChange={(e) => setReminder(e.target.value)} />
+          <button type="button" className="btn-primary" onClick={() => download('kcna-daily-study.ics', studyReminderIcs(reminder, window.location.origin + window.location.pathname), 'text/calendar')}>
+            Add daily reminder to calendar
           </button>
         </div>
       </section>
