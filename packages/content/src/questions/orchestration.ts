@@ -108,7 +108,7 @@ export const questionsOrchestration: Question[] = [
     ],
     answer: [3],
     explanation:
-      'Kubernetes asks the runtime to send SIGTERM so the application can shut down cleanly (finish requests, flush data). If the process is still running when the grace period ends (30 seconds by default), it is sent SIGKILL. Applications that ignore SIGTERM therefore always take the full grace period to stop.',
+      'Kubernetes asks the runtime to send the stop signal, which is SIGTERM unless the image defines a different STOPSIGNAL, so the application can shut down cleanly (finish requests, flush data). If the process is still running when the grace period ends (30 seconds by default), it is sent SIGKILL. Applications that ignore SIGTERM therefore always take the full grace period to stop.',
     choiceRationale: [
       'SIGHUP is conventionally a reload signal and is not part of Pod termination.',
       'SIGKILL is only the fallback after the grace period, not the first signal.',
@@ -581,7 +581,7 @@ What is the cause?`,
     ],
     answer: [3],
     explanation:
-      'A Service only gets endpoints for ready Pods whose labels match its selector. Here the selector is `app=web` but the Pods carry `app=web-frontend`, so the EndpointSlice is empty. Fixing either the selector or the Pod template labels makes the endpoints appear.',
+      'A Service routes only to ready Pods whose labels match its selector. Here the selector is `app=web` but the Pods carry `app=web-frontend`, so the EndpointSlice is empty. Fixing either the selector or the Pod template labels makes the endpoints appear.',
     choiceRationale: [
       'kube-proxy watches the API continuously; no restart is needed.',
       'Endpoints are populated from the selector, independent of any Ingress.',
@@ -1072,7 +1072,7 @@ Which change addresses these violations?`,
     choiceRationale: [
       'Correct: prevents writes to the container\'s root filesystem.',
       'Privileged mode grants almost full access to the host.',
-      'Correct: removes all Linux capabilities by default.',
+      'Correct: removes every Linux capability; add back only the ones the app needs.',
       'Host networking exposes the node\'s network stack to the Pod.',
       'UID 0 is root, which increases the impact of a compromise.',
     ],

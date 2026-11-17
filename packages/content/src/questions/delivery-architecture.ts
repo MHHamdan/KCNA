@@ -626,7 +626,7 @@ export const questionsDeliveryArchitecture: Question[] = [
     ],
     answer: [0],
     explanation:
-      'EndpointSlices for a Service are populated with Ready Pods whose labels match the Service selector. Since the Pods are Ready and reachable directly, an empty endpoint list points to a selector and label mismatch.',
+      'The EndpointSlice controller adds an endpoint for every Pod whose labels match the Service selector (marking it ready or not ready). Since the Pods exist, are Ready, and are reachable directly, an empty endpoint list points to a selector and label mismatch.',
     choiceRationale: [
       'Correct: with Ready Pods but no endpoints, the selector is not matching any Pod.',
       'Liveness probes affect restarts, not Service endpoint membership.',

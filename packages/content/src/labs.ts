@@ -339,7 +339,7 @@ web-xxxxx   IPv4   <unset>   <unset>   ...`,
           'kubectl expose deployment web --name=web-np --type=NodePort --port=80',
           "NODE_PORT=$(kubectl get service web-np -o jsonpath='{.spec.ports[0].nodePort}'); echo $NODE_PORT",
           "NODE_IP=$(kubectl get node kcna-control-plane -o jsonpath='{.status.addresses[?(@.type==\"InternalIP\")].address}'); echo $NODE_IP",
-          'curl -s http://$NODE_IP:$NODE_PORT | head -4   # Linux hosts only',
+          'curl -s --retry 5 --retry-connrefused http://$NODE_IP:$NODE_PORT | head -4   # Linux hosts only',
           'kubectl port-forward service/web 8080:80   # any OS; then in another terminal: curl -s localhost:8080 | head -4',
         ],
         expected: `3xxxx
@@ -718,8 +718,9 @@ deployment "bad-image" successfully rolled out`,
       {
         title: 'Diagnose CrashLoopBackOff',
         instructions:
-          'Check the last termination state and the logs of the previous instance, then fix the Deployment by adding the missing env var.',
+          'Check the last termination state and the logs of the previous instance, then fix the Deployment by adding the missing env var. `--previous` only works once the container has crashed at least once, so first wait until RESTARTS is 1 or more (the first command does that for you).',
         commands: [
+          "until [ \"$(kubectl get pods -n broken -l app=crasher -o jsonpath='{.items[0].status.containerStatuses[0].restartCount}')\" -ge 1 ] 2>/dev/null; do sleep 3; done; kubectl get pods -n broken -l app=crasher",
           'kubectl describe pod -n broken -l app=crasher | grep -A5 "Last State"',
           'kubectl logs -n broken deployment/crasher --previous',
           'kubectl set env deployment/crasher -n broken DB_HOST=db.example.internal',

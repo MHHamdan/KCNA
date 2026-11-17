@@ -1,7 +1,7 @@
 import type { EcosystemProject } from './types';
 
 /** Maturity levels last checked on this date; recheck https://www.cncf.io/projects/ before relying on them. */
-export const ECOSYSTEM_VERIFIED_AT = '2026-11-12';
+export const ECOSYSTEM_VERIFIED_AT = '2026-11-17';
 
 export const ecosystemProjects: EcosystemProject[] = [
   // Orchestration & Scheduling
@@ -49,7 +49,7 @@ export const ecosystemProjects: EcosystemProject[] = [
     purpose: "Unified logging layer that collects, transforms and routes logs (Fluent Bit is the lightweight agent).", url: "https://www.fluentd.org/" },
   { name: "Jaeger", category: "Observability", maturity: "graduated", examRelevance: "core",
     purpose: "Distributed tracing backend and UI for following requests across microservices.", url: "https://www.jaegertracing.io/" },
-  { name: "OpenTelemetry", category: "Observability", maturity: "incubating", examRelevance: "recognize",
+  { name: "OpenTelemetry", category: "Observability", maturity: "graduated", examRelevance: "core",
     purpose: "Vendor-neutral APIs, SDKs and Collector for traces, metrics and logs; instrumentation standard, not a backend.", url: "https://opentelemetry.io/" },
 
   // CI/CD & GitOps

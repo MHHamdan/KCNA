@@ -5,6 +5,9 @@ import { lessonsC } from './lessons/c';
 import { questionsFundamentals } from './questions/fundamentals';
 import { questionsOrchestration } from './questions/orchestration';
 import { questionsDeliveryArchitecture } from './questions/delivery-architecture';
+import { questionsFundamentals2 } from './questions/bank2-fundamentals';
+import { questionsOrchestration2 } from './questions/bank2-orchestration';
+import { questionsDeliveryArchitecture2 } from './questions/bank2-delivery-architecture';
 
 export * from './types';
 export * from './curriculum';
@@ -27,6 +30,9 @@ export const questions: Question[] = [
   ...questionsFundamentals,
   ...questionsOrchestration,
   ...questionsDeliveryArchitecture,
+  ...questionsFundamentals2,
+  ...questionsOrchestration2,
+  ...questionsDeliveryArchitecture2,
 ];
 
 const lessonIndex = new Map(lessons.map((l) => [l.id, l]));

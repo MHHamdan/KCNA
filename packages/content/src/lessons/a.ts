@@ -328,7 +328,7 @@ Tags vs digests is a frequent exam and production topic: it decides whether a ro
     problem: `"It works on my machine" usually means the machine had a library, a config file or a runtime version the server did not. Images freeze the userland into an artifact you can version and ship. Layering then fixes the next problem: shipping a 500 MB file for every one-line change would be wasteful, so only changed layers are rebuilt, pushed and pulled.`,
     how: `Trace a build and a pull:
 
-- **Build.** Each filesystem-changing Dockerfile instruction (\`FROM\`, \`COPY\`, \`RUN\`, \`ADD\`) produces a layer. Metadata instructions (\`CMD\`, \`ENV\`, \`EXPOSE\`, \`USER\`) only change the config.
+- **Build.** \`FROM\` starts from the base image's layers; each filesystem-changing instruction (\`COPY\`, \`RUN\`, \`ADD\`) adds a new layer. Metadata instructions (\`CMD\`, \`ENV\`, \`EXPOSE\`, \`USER\`) only change the config.
 - **Cache.** If an instruction and its inputs are unchanged, the builder reuses the cached layer. A change invalidates that layer **and every layer after it** – so put rarely-changing steps (installing dependencies) before frequently-changing ones (copying source).
 - **Hash.** Every layer and the config get a SHA-256 **digest** of their content. The manifest lists these digests; the manifest's own digest identifies the whole image.
 - **Push.** The client uploads blobs the registry does not already have, then uploads the manifest under a **tag** such as \`v1.4.2\`.
@@ -667,7 +667,7 @@ Cluster **add-ons** such as CoreDNS and a CNI network plugin run on top, usually
 
 Important consequences:
 
-- **Hub and spoke.** Components do not call each other; they all **watch** the API server. Only the API server talks to etcd.
+- **Hub and spoke.** Components coordinate by **watching** and writing through the API server rather than calling each other. Only the API server talks to etcd.
 - **Running Pods survive control-plane outages.** If the control plane is down, existing containers keep running; you just cannot change anything, and failed Pods are not replaced.
 - **High availability** means running several API servers behind a load balancer, an odd number of etcd members, and leader election for the scheduler and controller manager (one active instance each).`,
     components: [
@@ -965,8 +965,8 @@ Only node C is feasible, so the Pod is bound to node C (scoring is trivial with 
 
 - **Observe.** Its watch on the API server delivers a Pod with \`spec.nodeName\` equal to this node.
 - **Admit.** It checks node-level conditions (enough resources, no node pressure that blocks admission).
+- **Prepare volumes.** ConfigMaps, Secrets, emptyDirs and persistent volumes are attached and mounted; the kubelet waits for this before starting the Pod.
 - **Create the sandbox.** CRI \`RunPodSandbox\`: the runtime creates the Pod's shared namespaces (notably the network namespace, held by a tiny "pause" container in containerd/CRI-O). The **CNI plugin** attaches a network interface and assigns the Pod IP.
-- **Prepare volumes.** ConfigMaps, Secrets, emptyDirs and persistent volumes are mounted.
 - **Pull images.** CRI \`PullImage\` according to \`imagePullPolicy\`.
 - **Start containers.** Init containers run first, one by one, to completion; then the app containers start via CRI \`CreateContainer\`/\`StartContainer\`. The runtime hands an OCI bundle to runc, which creates the process.
 - **Supervise.** The kubelet runs liveness/readiness/startup probes, restarts failed containers per \`restartPolicy\` (with exponential back-off), and reports status (\`Running\`, \`Ready\`, restart counts) to the API server.
@@ -1127,7 +1127,7 @@ Better: change \`replicas\` in Git (so the declared state is the real intent), o
       },
       {
         q: 'What is server-side apply?',
-        a: '`kubectl apply --server-side` performs the merge on the API server and records which **field manager** owns each field, reporting conflicts when two managers set the same field. It replaces the last-applied annotation mechanism.',
+        a: '`kubectl apply --server-side` performs the merge on the API server and records which **field manager** owns each field, reporting conflicts when two managers set the same field. It is the alternative to the last-applied annotation used by client-side apply, which remains the kubectl default.',
       },
       {
         q: 'How fast does reconciliation happen?',
@@ -1414,7 +1414,7 @@ spec:
 
 - **Label the Pods.** The Deployment template sets \`labels: {app: web, tier: frontend}\` on every Pod it creates.
 - **Write the query.** The Service declares \`selector: {app: web}\`. Services support only equality-based selectors (all listed pairs must match).
-- **Controller evaluates it.** The EndpointSlice controller lists Pods **in the Service's namespace** that carry \`app=web\` and are Ready, and writes their IPs into EndpointSlices.
+- **Controller evaluates it.** The EndpointSlice controller lists Pods **in the Service's namespace** that carry \`app=web\` and writes their IPs into EndpointSlices, marking each endpoint ready or not; only ready endpoints receive traffic.
 - **Labels change → membership changes.** Remove the \`app=web\` label from one Pod and it drops out of the Service (and out of the ReplicaSet's count, so the ReplicaSet creates a replacement – a handy trick for debugging a Pod in isolation).
 - **Namespace boundary.** Selectors in Services, ReplicaSets and Deployments only match objects in the same namespace. Cross-namespace access uses DNS names like \`web.team-a.svc.cluster.local\`.
 

@@ -2,7 +2,7 @@
   "name": "kcna-interactive-lab",
   "private": true,
   "version": "1.0.0",
-  "description": "KCNA Interactive Learning Lab — learn, practice, troubleshoot, ask, review and pass.",
+  "description": "KCNA Interactive Learning Lab \u2014 learn, practice, troubleshoot, ask, review and pass.",
   "type": "module",
   "workspaces": [
     "apps/*",
@@ -19,7 +19,8 @@
     "build:pages": "npm run build:pages -w @kcna/web",
     "coverage:matrix": "tsx scripts/coverage-matrix.ts",
     "check:links": "tsx scripts/check-links.ts",
-    "space:bundle": "tsx scripts/build-space.ts"
+    "space:bundle": "tsx scripts/build-space.ts",
+    "check:ecosystem": "tsx scripts/check-ecosystem.ts"
   },
   "engines": {
     "node": ">=20"

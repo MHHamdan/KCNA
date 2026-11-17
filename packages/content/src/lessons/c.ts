@@ -142,7 +142,7 @@ Knowing the API's structure (groups, versions, CRDs) explains why \`apiVersion: 
 
 **API paths** reveal the grouping: core resources live under \`/api/v1\`; everything else under \`/apis/<group>/<version>\`, e.g. \`/apis/apps/v1\` for Deployments. Versions progress **alpha** (\`v1alpha1\`, off by default, may change or vanish), **beta** (\`v1beta1\`, more stable; new beta APIs are off by default) and **stable/GA** (\`v1\`).
 
-**Upgrades with kubeadm**: upgrade the control plane first (\`kubeadm upgrade plan\`, then \`kubeadm upgrade apply\`), then each node in turn (drain, upgrade kubeadm/kubelet, uncordon). Skip no minor versions. Version skew rules allow the kubelet to be older than the API server (up to three minor versions) but **never newer**, and kubectl to be within one minor version of the API server, older or newer.`,
+**Upgrades with kubeadm**: upgrade the control plane first (\`kubeadm upgrade plan\`, then \`kubeadm upgrade apply\`), then each node in turn (upgrade kubeadm and run \`kubeadm upgrade node\`, drain, upgrade kubelet, uncordon). Skip no minor versions. Version skew rules allow the kubelet to be older than the API server (up to three minor versions) but **never newer**, and kubectl to be within one minor version of the API server, older or newer.`,
     components: [
       { name: 'kubeconfig', description: 'YAML file with `clusters`, `users`, `contexts` and `current-context`. Managed with `kubectl config get-contexts`, `current-context`, `use-context` and `view`.' },
       { name: 'kubectl verbs', description: 'Read: `get`, `describe`, `logs`, `explain`, `api-resources`. Write declaratively: `apply -f`. Write imperatively: `create`, `run`, `expose`, `scale`, `set image`, `label`, `delete`. Operate: `rollout`, `drain`, `cordon`, `uncordon`.' },
@@ -242,7 +242,7 @@ The symptom map:
     ],
     misconceptions: [
       { myth: 'CrashLoopBackOff is a Kubernetes bug or a special kind of error.', reality: 'It is a waiting state: the container keeps exiting and the kubelet backs off between restarts. The real cause is in the logs of the previous instance or a failing liveness probe.' },
-      { myth: 'A Pending Pod means the image is still downloading.', reality: 'Image pulls happen after scheduling, while the Pod already has a node. A Pod stuck in Pending usually has not been scheduled; check for `FailedScheduling` events.' },
+      { myth: 'A Pod whose STATUS column shows `Pending` is just downloading its image.', reality: 'Image pulls happen after scheduling, once the Pod has a node; kubectl then shows `ContainerCreating` (or `ErrImagePull`). A Pod that still shows `Pending` usually has not been scheduled; check for `FailedScheduling` events.' },
       { myth: 'Scheduling is based on what Pods actually use.', reality: 'The scheduler compares **requests** to node allocatable capacity. A node can be nearly idle and still have no room if its requests are fully booked.' },
     ],
     example: {
@@ -445,7 +445,7 @@ Helm 3 and later talk to the API server directly with your kubeconfig credential
       code: `# ---- Helm ----
 helm repo add example https://charts.example.com
 helm install web example/web --namespace web --create-namespace \\
-  --set replicaCount=5
+  --set replicaCount=5 --set image.tag=2.4.1
 helm list -n web
 helm upgrade web example/web -n web -f prod-values.yaml
 helm history web -n web
@@ -523,7 +523,7 @@ Two higher-level release patterns are built from Kubernetes primitives (or tools
     components: [
       { name: 'strategy.type', description: '`RollingUpdate` (default) or `Recreate`.' },
       { name: 'maxSurge / maxUnavailable', description: 'How many Pods above desired may exist during the update, and how many below desired may be unavailable. Default 25% each.' },
-      { name: 'Readiness gate of progress', description: 'The rollout advances only as new Pods become Ready, which makes readiness probes part of safe delivery.' },
+      { name: 'Readiness-driven progress', description: 'The rollout advances only as new Pods become Ready, which makes readiness probes part of safe delivery.' },
       { name: 'kubectl rollout', description: '`status`, `history`, `undo [--to-revision=N]`, `pause`, `resume`, `restart`.' },
       { name: 'Progressive delivery tools', description: 'Argo Rollouts and Flagger automate canary/blue-green steps and roll back based on metrics.' },
     ],
@@ -649,7 +649,7 @@ $ kubectl debug checkout-7c9f-abcde -it --copy-to=checkout-debug \\
     },
     exercise: {
       prompt: `A web app works via \`kubectl port-forward svc/web 8080:80\` but returns 404 through the Ingress. Separately, a Pod restarted twice and its current logs look clean. Which layer does each observation point to, and what command reveals the cause of the restarts?`,
-      solution: `- Port-forward to the Service works, so the app and the Service are fine. The 404 comes from the **Ingress layer**: wrong host or path rule, wrong backend service name/port, or a different ingress class. Check \`kubectl describe ingress\`.
+      solution: `- Port-forward to the Service works, so the app is healthy and the Service's selector finds its Pods (port-forward connects straight to one Pod, so it does not test Service load balancing). The 404 comes from the **Ingress layer**: wrong host or path rule, wrong backend service name/port, or a different ingress class. Check \`kubectl describe ingress\`.
 - The current instance is healthy; the crash happened in the previous one. \`kubectl logs <pod> --previous\` shows its output, and \`kubectl describe pod\` shows the last state's reason and exit code.`,
     },
     faq: [
@@ -798,7 +798,7 @@ For event-driven work, **KEDA** reads a source such as a queue length or Kafka l
       { myth: 'HPA adds nodes when the cluster is full.', reality: 'HPA only changes replica counts. If new Pods do not fit, they are Pending until a node autoscaler (or a human) adds capacity.' },
       { myth: 'HPA works without resource requests.', reality: 'CPU utilisation targets are percentages of the request. Without a request the HPA cannot compute utilisation for that metric.' },
       { myth: 'Serverless means there are no servers.', reality: 'Servers still exist; the platform operator manages them, and you are abstracted from provisioning and scaling.' },
-      { myth: 'The standard HPA can scale a Deployment to zero.', reality: 'HPA keeps at least `minReplicas` (1 or more by default). Scale-to-zero is provided by KEDA or Knative.' },
+      { myth: 'The standard HPA can scale a Deployment to zero.', reality: 'HPA keeps at least `minReplicas`, which must be 1 or more unless the alpha `HPAScaleToZero` feature gate is enabled. In practice, scale-to-zero is provided by KEDA or Knative.' },
     ],
     example: {
       title: 'An HPA targeting 60% CPU',
@@ -838,7 +838,7 @@ spec:
       { q: 'Is FaaS the same as serverless?', a: 'Function-as-a-Service is one form of serverless where you deploy individual functions. Serverless containers (e.g. Knative) apply the same operational model to whole container images.' },
     ],
     keyTerms: ['HorizontalPodAutoscaler', 'Vertical Pod Autoscaler', 'Cluster Autoscaler', 'metrics-server', 'KEDA', 'Knative', 'scale to zero', 'cold start'],
-    deeper: `The HPA's \`behavior\` field tunes scaling speed: policies such as "add at most 4 Pods or 100% per 15 seconds" and separate stabilisation windows for scale-up and scale-down. Kubernetes has also added **in-place Pod resource resize**, letting requests and limits change without recreating the Pod, which makes vertical scaling less disruptive; check the feature's status for your cluster version before relying on it.`,
+    deeper: `The HPA's \`behavior\` field tunes scaling speed: policies such as "add at most 4 Pods or 100% per 15 seconds" and separate stabilisation windows for scale-up and scale-down. Kubernetes has also added **in-place Pod resource resize**, letting requests and limits change without recreating the Pod, which makes vertical scaling less disruptive (beta and enabled by default since 1.33; check its status for your cluster version).`,
     references: [
       { title: 'Horizontal Pod Autoscaling', url: 'https://kubernetes.io/docs/tasks/run-application/horizontal-pod-autoscale/' },
       { title: 'Autoscaling Workloads', url: 'https://kubernetes.io/docs/concepts/workloads/autoscaling/' },
@@ -993,7 +993,7 @@ Short-lived batch jobs that end before a scrape can push to a **Pushgateway**, w
     ],
     misconceptions: [
       { myth: 'Applications push metrics to Prometheus.', reality: 'Prometheus pulls (scrapes). Push is only used through the Pushgateway for short-lived jobs, or via other components like an OpenTelemetry Collector that Prometheus scrapes or that uses remote write.' },
-      { myth: 'Prometheus is built for logs and long-term storage.', reality: 'It stores numeric time series only, on a local disk with limited retention. Logs go to log systems; long-term/global metric storage uses projects such as Thanos or Cortex via remote write.' },
+      { myth: 'Prometheus is built for logs and long-term storage.', reality: 'It stores numeric time series only, on a local disk with limited retention. Logs go to log systems; long-term/global metric storage uses projects such as Thanos or Cortex (fed via remote write or object storage).' },
       { myth: 'Graphing a counter directly shows the request rate.', reality: 'A raw counter is an ever-increasing total. Use `rate(counter[5m])` to get per-second rate; it also handles counter resets.' },
       { myth: 'metrics-server is a lightweight Prometheus.', reality: 'metrics-server only provides current CPU/memory for autoscaling and `kubectl top`. It has no history, no query language and no alerting.' },
     ],
@@ -1077,7 +1077,7 @@ The cost: a clerk at every desk takes space and adds a little delay. That cost m
 - **3. Routing.** The sidecar applies rules pushed by the control plane, e.g. 90% to \`orders\` v1 and 10% to v2, a 2-second timeout, up to 3 retries.
 - **4. mTLS.** The client sidecar opens a **mutual TLS** connection to the server's sidecar. Both present certificates issued by the mesh's certificate authority that encode **workload identity** (based on the ServiceAccount). Traffic is encrypted and each side knows who the other is.
 - **5. Authorization.** The server-side proxy checks policy: is \`frontend\`'s identity allowed to call \`POST /orders\`?
-- **6. Delivery and telemetry.** The request reaches the \`orders\` container over localhost. Both proxies record metrics (requests, errors, latency) and can emit trace spans — giving uniform observability for free, though apps must still forward trace headers for traces to connect.
+- **6. Delivery and telemetry.** The server-side proxy hands the request to the \`orders\` container inside the same Pod. Both proxies record metrics (requests, errors, latency) and can emit trace spans — giving uniform observability for free, though apps must still forward trace headers for traces to connect.
 
 **Sidecarless / ambient** designs split this up: in Istio's **ambient mode**, a per-node proxy (**ztunnel**) provides mTLS and L4 features for all Pods on the node, and optional **waypoint proxies** (Envoy-based) are deployed only where L7 features are needed. This lowers per-Pod resource cost and avoids restarting Pods to inject sidecars.`,
     components: [
@@ -1159,7 +1159,7 @@ Costs: extra CPU/memory for proxies (per Pod with sidecars), a small latency inc
 Key structures:
 
 - **Governing Board** — handles budget, marketing and business matters.
-- **Technical Oversight Committee (TOC)** — the technical authority: defines the cloud native vision, accepts projects and votes on maturity changes. It is supported by **Technical Advisory Groups (TAGs)** focused on areas such as security or observability.
+- **Technical Oversight Committee (TOC)** — the technical authority: defines the cloud native vision, accepts projects and votes on maturity changes. It is supported by **Technical Advisory Groups (TAGs)** focused on technical areas such as security.
 - **Projects** — each has its own maintainers and governance. The CNCF owns trademarks and provides neutral infrastructure; it does not run projects day to day.`,
     why: `KCNA's "Cloud Native Community and Collaboration" competency tests whether you understand how this ecosystem works — who decides, how mature a project is, and why standards matter. Practically, project maturity is a signal when choosing tools, and knowing how Kubernetes evolves (KEPs, SIGs, release cycle) explains why features move from alpha to GA over several releases.`,
     problem: `Thousands of contributors from competing companies build shared infrastructure. Without neutral governance, one vendor could steer a project for its own benefit, and users could not trust its long-term direction. Without **open standards**, every runtime, network plugin and storage driver would need custom integration with every orchestrator.`,
@@ -1205,7 +1205,7 @@ Key structures:
 Image & runtime     OCI specs           containerd, CRI-O (both implement CRI as well)
 Kubelet -> runtime  CRI (Kubernetes)    containerd, CRI-O
 Pod networking      CNI                 Cilium, Calico (non-CNCF), Flannel (non-CNCF)
-Storage             CSI                 Cloud provider drivers, Rook-Ceph
+Storage             CSI                 Rook (Ceph), cloud provider drivers (non-CNCF)
 Cluster DNS         —                   CoreDNS
 Cluster state       —                   etcd
 Metrics             —                   Prometheus

@@ -27,7 +27,8 @@ All content lives in `packages/content/src` as typed data (schema: `types.ts`). 
 
 ## Adding a lab
 
-- `status: 'full'` means a complete walkthrough with expected output; `'design'` means an outline. **The six current full labs have not yet been executed end-to-end on a real cluster** (planned: a kind-based CI job, see README next steps), so expected output is marked approximate in the UI.
+- `status: 'full'` means a complete walkthrough with expected output; `'design'` means an outline. Full labs are executed on a real kind cluster by `.github/workflows/labs.yml` (weekly and on every change to `labs.ts`) using `scripts/run-labs.ts`, which runs every command in one shell session, time-boxes watches, skips port-forward, and accepts errors the lab itself lists as expected. Expected outputs remain approximate (names, ages, IPs differ).
+- Re-check CNCF maturity claims with `npm run check:ecosystem`.
 - Every lab needs objective, prerequisites, architecture, tasks (commands + expected output + hints), validation, troubleshooting, cleanup and references.
 - Labs run on the learner's machine. Never wire the app to execute commands against a real cluster.
 

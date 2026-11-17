@@ -550,7 +550,7 @@ export const questionsFundamentals: Question[] = [
       'Correct: the Pod is orphaned but keeps running, and a replacement is created.',
       'The ReplicaSet no longer considers the Pod its own, so it does not delete it.',
       'ReplicaSets select Pods by labels, not by names.',
-      'Label changes on Pods are allowed; nothing protects selector labels from edits.',
+      'Label changes on Pods are allowed; by default nothing protects selector labels from edits.',
     ],
     references: [R.replicaset, R.labels],
     tags: ['replicaset', 'labels', 'selectors'],
@@ -1017,7 +1017,7 @@ export const questionsFundamentals: Question[] = [
     ],
     answer: [1],
     explanation:
-      'The control plane must be upgraded first because kubelets may not be newer than the API server. Worker nodes are then upgraded one at a time: drain the node, upgrade kubeadm and the kubelet, restart the kubelet, and uncordon it.',
+      'The control plane must be upgraded first because kubelets may not be newer than the API server. Worker nodes are then upgraded one at a time: upgrade kubeadm and run `kubeadm upgrade node`, drain the node, upgrade and restart the kubelet, and uncordon it.',
     choiceRationale: [
       'Upgrading kubelets first would make them newer than the API server, which is unsupported.',
       'Correct: control plane first, then workers one by one with drain and uncordon.',

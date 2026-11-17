@@ -44,7 +44,7 @@ Before Kubernetes, the usual answer was a crontab on one specific server: a sing
         reality: `No. The API server rejects a Job whose Pod template uses \`Always\`. Only \`Never\` and \`OnFailure\` make sense for work that is meant to finish.`,
       },
       {
-        myth: 'Deleting a finished Job is necessary to see it stopped — Completed Pods are still running.',
+        myth: 'The Completed Pods of a finished Job are still running and using resources.',
         reality: `A \`Completed\` Pod has exited and uses no CPU or memory. It is kept only so you can read logs and status. Remove it with \`ttlSecondsAfterFinished\` or history limits when you no longer need it.`,
       },
       {
@@ -122,7 +122,7 @@ A **StatefulSet** manages Pods that each have a **persistent identity**: a stabl
     why: `Think of a Deployment as a taxi rank: any car will do. A DaemonSet is a security guard posted at **every** building entrance. A StatefulSet is a numbered seat in a parliament: seat 2 is always seat 2, keeps its own desk drawer (volume), and members are sworn in in order.
 
 Log shippers (Fluent Bit), node metrics exporters, CNI agents and kube-proxy itself need to be on every node — that is the DaemonSet case. Databases, message brokers and consensus systems (PostgreSQL replicas, Kafka, etcd, ZooKeeper) need peers to find each other by name and keep their data — that is the StatefulSet case.`,
-    problem: `Try running a three-node database with a Deployment. Pods get random names like \`db-7c9d4-xk2lp\`; when one is replaced, its name and IP change, so the other members no longer recognise it. Worse, all replicas share one PVC template — or none — so a replacement Pod starts with an empty disk.
+    problem: `Try running a three-node database with a Deployment. Pods get random names like \`db-7c9d4-xk2lp\`; when one is replaced, its name and IP change, so the other members no longer recognise it. Worse, all replicas mount the same PVC — or none — so members cannot each keep their own data, and a replacement may start with an empty disk.
 
 Try running a log agent with a Deployment of 5 replicas on 5 nodes. The scheduler may place two on one node and none on another, and when you scale the cluster to 8 nodes, three nodes are silently uncovered.`,
     how: `**DaemonSet, step by step:**
@@ -196,6 +196,8 @@ spec:
           env:
             - name: POSTGRES_PASSWORD
               value: example-only
+            - name: PGDATA            # subdirectory: a fresh volume may contain lost+found
+              value: /var/lib/postgresql/data/pgdata
           volumeMounts:
             - name: data
               mountPath: /var/lib/postgresql/data
@@ -521,6 +523,7 @@ The steering tools:
       language: 'yaml',
       code: `# kubectl taint nodes gpu-node-1 dedicated=gpu:NoSchedule
 # kubectl label nodes gpu-node-1 accelerator=nvidia
+# (repeat for gpu-node-2: the required anti-affinity needs one GPU node per replica)
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -680,7 +683,7 @@ The control-plane Pods (kube-apiserver, etcd …) run with \`hostNetwork: true\`
       },
     ],
     keyTerms: ['Kubernetes network model', 'CNI', 'IP-per-Pod', 'network namespace', 'veth pair', 'IPAM', 'overlay network', 'eBPF'],
-    deeper: `Three address ranges coexist in a cluster: **node IPs** (the machines), the **Pod CIDR** (often split into a per-node range recorded in \`node.spec.podCIDR\`), and the **Service CIDR** (virtual IPs that exist only in kube-proxy rules, never on an interface). They must not overlap with each other or with networks the cluster needs to reach. Dual-stack (IPv4 + IPv6) clusters give each Pod one address of each family.`,
+    deeper: `Three address ranges coexist in a cluster: **node IPs** (the machines), the **Pod CIDR** (often split into a per-node range recorded in \`node.spec.podCIDR\`), and the **Service CIDR** (virtual IPs implemented by kube-proxy's forwarding rules, not assigned to any Pod). They must not overlap with each other or with networks the cluster needs to reach. Dual-stack (IPv4 + IPv6) clusters give each Pod one address of each family.`,
     references: [
       { title: 'Kubernetes docs: Cluster Networking', url: 'https://kubernetes.io/docs/concepts/cluster-administration/networking/' },
       { title: 'Kubernetes docs: Services, Load Balancing, and Networking', url: 'https://kubernetes.io/docs/concepts/services-networking/' },
@@ -699,7 +702,7 @@ The control-plane Pods (kube-apiserver, etcd …) run with \`hostNetwork: true\`
       'A Service gives a changing set of Pods one stable name and virtual IP. Its type decides who can reach it: ClusterIP (inside), NodePort (node ports), LoadBalancer (external LB) or ExternalName (DNS alias).',
     what: `A **Service** is a stable front door for a group of Pods selected by **labels**. Pods are ephemeral — they are replaced, rescheduled, scaled, and every replacement gets a new IP. The Service stays put: it has a fixed **virtual IP (ClusterIP)**, a DNS name, and a port, and it load-balances connections across whichever matching Pods are Ready right now.
 
-Service **types**, each building on the previous one:
+Service **types** (the first three each build on the previous one):
 
 - **ClusterIP** (default) — reachable only from inside the cluster.
 - **NodePort** — also opens the same port (default range **30000–32767**) on **every node**.
@@ -716,7 +719,7 @@ A Service named \`backend\` fixes both: clients call \`backend:8080\`, and the p
 - The client resolves \`backend\` via cluster DNS and gets the Service's ClusterIP, e.g. \`10.96.40.12\`.
 - Meanwhile the **EndpointSlice controller** has been watching Pods that match the Service's \`selector\` and recording their IPs, ports and readiness in **EndpointSlice** objects.
 - **kube-proxy**, running on every node, watches Services and EndpointSlices and programs the node's packet-handling rules (iptables, IPVS or nftables mode).
-- The client sends a packet to \`10.96.40.12:80\`. No interface owns this IP. The node's rules match it and rewrite (**DNAT**) the destination to one Ready Pod, e.g. \`10.244.1.12:8080\` — the Service's \`targetPort\`.
+- The client sends a packet to \`10.96.40.12:80\`. No Pod owns this IP. The node's rules match it and rewrite (**DNAT**) the destination to one Ready Pod, e.g. \`10.244.1.12:8080\` — the Service's \`targetPort\`.
 - The packet travels over the Pod network to that Pod; the reply is translated back so the client sees it coming from the Service IP.
 
 For **NodePort**, the same rules also match traffic arriving at \`<any-node-IP>:<nodePort>\`. For **LoadBalancer**, the cloud load balancer sends traffic to the node ports (or, in some implementations, directly to Pods).
@@ -724,7 +727,7 @@ For **NodePort**, the same rules also match traffic arriving at \`<any-node-IP>:
 Ports to keep straight: \`port\` = the Service's port; \`targetPort\` = the container's port (defaults to \`port\`); \`nodePort\` = the port on each node.`,
     components: [
       { name: 'Service', description: 'Stable virtual IP + DNS name + port for a label-selected set of Pods.' },
-      { name: 'EndpointSlice', description: 'Scalable list of backend addresses and their readiness; replaced the older single Endpoints object for large Services.' },
+      { name: 'EndpointSlice', description: 'Scalable, sharded list of backend addresses and their readiness; successor to the older Endpoints API.' },
       { name: 'kube-proxy', description: 'Node agent that turns Services into packet-forwarding rules (iptables, IPVS or nftables). Some CNIs, like Cilium, can replace it.' },
       { name: 'ClusterIP / NodePort / LoadBalancer', description: 'Increasingly exposed Service types; each includes the capabilities of the previous one.' },
       { name: 'ExternalName', description: 'DNS-only alias (CNAME) to an external name; no selector, no proxying.' },
@@ -783,7 +786,7 @@ Detect it with \`kubectl get endpointslices -l kubernetes.io/service-name=web\` 
     ],
     keyTerms: ['ClusterIP', 'NodePort', 'LoadBalancer', 'ExternalName', 'headless Service', 'EndpointSlice', 'kube-proxy', 'targetPort'],
     diagram: 'service-networking',
-    deeper: `\`externalTrafficPolicy: Local\` makes NodePort/LoadBalancer traffic go only to Pods on the receiving node, which preserves the client source IP and avoids an extra hop at the cost of uneven balancing. \`internalTrafficPolicy\` and topology-aware routing similarly keep in-cluster traffic close to the client. \`sessionAffinity: ClientIP\` pins a client to one backend. IPVS mode scales better than iptables for very large numbers of Services, and newer releases add an nftables mode.`,
+    deeper: `\`externalTrafficPolicy: Local\` makes NodePort/LoadBalancer traffic go only to Pods on the receiving node, which preserves the client source IP and avoids an extra hop at the cost of uneven balancing. \`internalTrafficPolicy\` and topology-aware routing similarly keep in-cluster traffic close to the client. \`sessionAffinity: ClientIP\` pins a client to one backend. For very large numbers of Services, the **nftables** mode (GA in 1.33) scales better than iptables; the older IPVS mode is no longer the recommended direction.`,
     references: [
       { title: 'Kubernetes docs: Service', url: 'https://kubernetes.io/docs/concepts/services-networking/service/' },
       { title: 'Kubernetes docs: EndpointSlices', url: 'https://kubernetes.io/docs/concepts/services-networking/endpoint-slices/' },
@@ -830,7 +833,7 @@ options ndots:5
 
 CoreDNS behaviour is configured by a **Corefile** stored in the \`coredns\` ConfigMap in \`kube-system\`.`,
     components: [
-      { name: 'CoreDNS', description: 'Plugin-based DNS server; the default cluster DNS since Kubernetes 1.13; CNCF graduated.' },
+      { name: 'CoreDNS', description: 'Plugin-based DNS server; the default cluster DNS add-on (replaced kube-dns); CNCF graduated.' },
       { name: 'kube-dns Service', description: 'ClusterIP Service in `kube-system` fronting the CoreDNS Pods; its IP is the Pods’ nameserver.' },
       { name: 'Corefile', description: 'CoreDNS configuration (in the `coredns` ConfigMap): kubernetes plugin, forward, cache, etc.' },
       { name: 'resolv.conf search list', description: 'Lets short names expand to `<name>.<ns>.svc.cluster.local`.' },
@@ -990,7 +993,7 @@ spec:
     faq: [
       {
         q: 'Does Ingress handle TCP or UDP traffic?',
-        a: `Not in the standard API — Ingress is for HTTP and HTTPS. Gateway API defines \`TCPRoute\`, \`UDPRoute\` and \`TLSRoute\` (in its experimental channel at the time of writing) and \`GRPCRoute\` for gRPC.`,
+        a: `Not in the standard API — Ingress is for HTTP and HTTPS. Gateway API adds \`GRPCRoute\` (Standard channel) for gRPC, plus \`TLSRoute\`, \`TCPRoute\` and \`UDPRoute\` for non-HTTP traffic — check each one's release channel and your implementation's support, as some have long been Experimental-only.`,
       },
       {
         q: 'Do I need to migrate from Ingress to Gateway API now?',
@@ -1003,7 +1006,7 @@ spec:
     ],
     keyTerms: ['Ingress', 'Ingress controller', 'IngressClass', 'Gateway API', 'GatewayClass', 'Gateway', 'HTTPRoute', 'TLS termination'],
     diagram: 'ingress-flow',
-    deeper: `Gateway API ships in two release channels: **Standard** (stable resources such as GatewayClass, Gateway, HTTPRoute, GRPCRoute) and **Experimental**. **ReferenceGrant** controls cross-namespace references, for example a route in one namespace pointing at a Service in another. The **GAMMA** initiative extends Gateway API to service-mesh (east-west) traffic by attaching routes to Services instead of Gateways. Note also that the community **ingress-nginx** controller was announced for retirement by Kubernetes SIG Network; check its project status before choosing it for new clusters.`,
+    deeper: `Gateway API ships in two release channels: **Standard** (stable resources such as GatewayClass, Gateway, HTTPRoute, GRPCRoute) and **Experimental**. **ReferenceGrant** controls cross-namespace references, for example a route in one namespace pointing at a Service in another. The **GAMMA** initiative extends Gateway API to service-mesh (east-west) traffic by attaching routes to Services instead of Gateways. Note also that the community **ingress-nginx** controller (\`kubernetes/ingress-nginx\`) has been retired: Kubernetes SIG Network announced it in November 2025, with best-effort maintenance ending in March 2026. That affects one controller, not the Ingress API — other Ingress controllers continue — but do not pick ingress-nginx for new clusters.`,
     references: [
       { title: 'Kubernetes docs: Ingress', url: 'https://kubernetes.io/docs/concepts/services-networking/ingress/' },
       { title: 'Kubernetes docs: Gateway API', url: 'https://kubernetes.io/docs/concepts/services-networking/gateway/' },
@@ -1131,7 +1134,7 @@ Writing them as two separate items (\`- namespaceSelector\` and \`- podSelector\
       },
     ],
     keyTerms: ['NetworkPolicy', 'podSelector', 'namespaceSelector', 'ipBlock', 'policyTypes', 'default deny', 'isolation', 'zero trust'],
-    deeper: `Because core NetworkPolicy is namespaced and allow-only, cluster administrators who need guardrails that app teams cannot override use CNI-specific CRDs (Calico GlobalNetworkPolicy, CiliumClusterwideNetworkPolicy) or the SIG Network **AdminNetworkPolicy** API, which adds cluster scope, priorities and explicit Deny/Pass actions. \`ipBlock\` rules are also tricky for traffic that is NATed on the way in or out (e.g. through a LoadBalancer), since the source IP the Pod sees may differ from the client's.`,
+    deeper: `Because core NetworkPolicy is namespaced and allow-only, cluster administrators who need guardrails that app teams cannot override use CNI-specific CRDs (Calico GlobalNetworkPolicy, CiliumClusterwideNetworkPolicy) or the out-of-tree SIG Network **network-policy-api** project (AdminNetworkPolicy and its successors; still alpha and evolving), which adds cluster scope, priorities and explicit Deny/Pass actions. \`ipBlock\` rules are also tricky for traffic that is NATed on the way in or out (e.g. through a LoadBalancer), since the source IP the Pod sees may differ from the client's.`,
     references: [
       { title: 'Kubernetes docs: Network Policies', url: 'https://kubernetes.io/docs/concepts/services-networking/network-policies/' },
       { title: 'Kubernetes task: Declare Network Policy', url: 'https://kubernetes.io/docs/tasks/administer-cluster/declare-network-policy/' },
@@ -1323,7 +1326,7 @@ spec:
           mountPath: /data
     - name: reader
       image: busybox:1.36
-      command: ["sh", "-c", "touch /input/log.txt; tail -f /input/log.txt"]
+      command: ["sh", "-c", "until [ -f /input/log.txt ]; do sleep 1; done; tail -f /input/log.txt"]
       volumeMounts:
         - name: scratch
           mountPath: /input
@@ -1447,6 +1450,8 @@ spec:
       env:
         - name: POSTGRES_PASSWORD
           value: example-only
+        - name: PGDATA                # subdirectory: a fresh disk may contain lost+found
+          value: /var/lib/postgresql/data/pgdata
       volumeMounts:
         - name: data
           mountPath: /var/lib/postgresql/data
