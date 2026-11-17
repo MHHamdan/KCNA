@@ -40,6 +40,19 @@ const NAV: { group: string; items: { to: string; label: string; icon: string }[]
     ],
   },
   {
+    group: 'Cloud Infra · Senior',
+    items: [
+      { to: '/infra', label: 'Track home', icon: 'layers' },
+      { to: '/infra/practice', label: 'Interview questions', icon: 'quiz' },
+      { to: '/infra/design', label: 'System design', icon: 'cluster' },
+      { to: '/infra/behavioral', label: 'Behavioural', icon: 'review' },
+      { to: '/infra/mock', label: 'Mock interview', icon: 'spark' },
+      { to: '/infra/flashcards', label: 'Infra flashcards', icon: 'cards' },
+      { to: '/infra/readiness', label: 'Interview readiness', icon: 'target' },
+      { to: '/infra/resources', label: 'Reading list', icon: 'link' },
+    ],
+  },
+  {
     group: 'Reference',
     items: [
       { to: '/tutor', label: 'AI tutor', icon: 'spark' },
@@ -61,7 +74,7 @@ function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
               <li key={it.to}>
                 <NavLink
                   to={it.to}
-                  end={it.to === '/'}
+                  end={it.to === '/' || it.to === '/infra'}
                   onClick={onNavigate}
                   className={({ isActive }) =>
                     `flex items-center gap-2.5 rounded-lg px-2 py-1.5 text-sm ${isActive ? 'bg-brand-50 font-semibold text-brand-800 dark:bg-brand-500/10 dark:text-brand-300' : 'text-slate-600 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-ink-850'}`

@@ -1,18 +1,21 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { flashcards, OBJECTIVES, type ObjectiveId } from '@kcna/content';
+import { flashcards, infraFlashcards, INFRA_TOPICS, OBJECTIVES, type Flashcard } from '@kcna/content';
 import { dueCards, newCard, recordActivity, review, type Grade } from '@kcna/engine';
 import { updateProgress, useProgress } from '../lib/store';
 import { PageHeader } from '../components/Layout';
 import { Md } from '../components/Md';
 import { AskAI } from '../components/TutorPanel';
-import { ObjectiveChip } from '../components/ui';
+import { ObjectiveChip, lessonPath } from '../components/ui';
 
-export function FlashcardsPage() {
+export function FlashcardsPage({ track = 'kcna' }: { track?: 'kcna' | 'infra' }) {
   const p = useProgress();
-  const [objective, setObjective] = useState<ObjectiveId | ''>('');
+  const infra = track === 'infra';
+  const allCards: Flashcard<string>[] = infra ? infraFlashcards : flashcards;
+  const objectiveList: { id: string; name: string }[] = infra ? INFRA_TOPICS : OBJECTIVES;
+  const [objective, setObjective] = useState<string>('');
   const [flipped, setFlipped] = useState(false);
-  const deck = useMemo(() => flashcards.filter((c) => !objective || c.objective === objective), [objective]);
+  const deck = useMemo(() => allCards.filter((c) => !objective || c.objective === objective), [objective, allCards]);
   // snapshot the queue at session start so reviewed cards leave it predictably
   const [queue, setQueue] = useState<string[]>([]);
   useEffect(() => {
@@ -23,9 +26,10 @@ export function FlashcardsPage() {
     setFlipped(false);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [deck]);
-  const card = flashcards.find((c) => c.id === queue[0]);
-  const studied = Object.keys(p.cards).length;
-  const mature = Object.values(p.cards).filter((c) => c.interval >= 7).length;
+  const card = allCards.find((c) => c.id === queue[0]);
+  const deckIds = new Set(allCards.map((c) => c.id));
+  const studied = Object.keys(p.cards).filter((id) => deckIds.has(id)).length;
+  const mature = Object.entries(p.cards).filter(([id, c]) => deckIds.has(id) && c.interval >= 7).length;
 
   const grade = (g: Grade) => {
     if (!card) return;
@@ -49,10 +53,10 @@ export function FlashcardsPage() {
 
   return (
     <div>
-      <PageHeader title="Flashcards" subtitle={`Spaced repetition (SM-2). ${flashcards.length} cards · ${studied} studied · ${mature} retained beyond a week. Space flips, 1–4 grades.`} />
-      <select className="input mb-4 w-auto" value={objective} onChange={(e) => setObjective(e.target.value as ObjectiveId | '')} aria-label="Filter by objective">
+      <PageHeader title={infra ? 'Senior interview flashcards' : 'Flashcards'} subtitle={`Spaced repetition (SM-2). ${allCards.length} cards · ${studied} studied · ${mature} retained beyond a week. Space flips, 1–4 grades.`} />
+      <select className="input mb-4 w-auto" value={objective} onChange={(e) => setObjective(e.target.value)} aria-label="Filter by objective">
         <option value="">All objectives</option>
-        {OBJECTIVES.map((o) => (
+        {objectiveList.map((o) => (
           <option key={o.id} value={o.id}>
             {o.name}
           </option>
@@ -91,7 +95,7 @@ export function FlashcardsPage() {
             </div>
           )}
           <div className="mt-3 flex flex-wrap gap-2">
-            <Link className="btn-ghost" to={`/lessons/${card.lessonId}`}>
+            <Link className="btn-ghost" to={lessonPath(card.lessonId)}>
               Open lesson
             </Link>
             <AskAI question={`Help me remember this: "${card.front}". Give me a memorable explanation or mnemonic.`} context={{ lessonId: card.lessonId }} />

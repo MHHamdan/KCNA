@@ -1,8 +1,8 @@
 import { type ReactNode } from 'react';
-import { DOMAINS, OBJECTIVES, type DomainId, type ObjectiveId, type Reference, type Scope } from '@kcna/content';
+import { DOMAINS, INFRA_DOMAINS, INFRA_TOPICS, OBJECTIVES, type DomainId, type InfraDomainId, type ObjectiveId, type Reference, type Scope } from '@kcna/content';
 
 export const pct = (x: number) => `${Math.round(x * 100)}%`;
-export const objectiveName = (o: ObjectiveId) => OBJECTIVES.find((x) => x.id === o)?.name ?? o;
+export const objectiveName = (o: string) => OBJECTIVES.find((x) => x.id === o)?.name ?? INFRA_TOPICS.find((x) => x.id === o)?.name ?? o;
 export const domainName = (d: DomainId) => DOMAINS.find((x) => x.id === d)?.name ?? d;
 
 export const DOMAIN_COLORS: Record<DomainId, string> = {
@@ -36,11 +36,34 @@ export function ScopeBadge({ scope }: { scope: Scope }) {
     kcna: ['KCNA exam', 'border-brand-300 text-brand-700 dark:border-brand-500/40 dark:text-brand-300'],
     foundation: ['Foundation', 'border-sky-300 text-sky-700 dark:border-sky-500/40 dark:text-sky-300'],
     beyond: ['Beyond KCNA', 'border-amber-300 text-amber-700 dark:border-amber-500/40 dark:text-amber-300'],
+    senior: ['Senior interview', 'border-violet-300 text-violet-700 dark:border-violet-500/40 dark:text-violet-300'],
   };
   return <span className={`chip ${m[scope][1]}`}>{m[scope][0]}</span>;
 }
 
-export function ObjectiveChip({ id }: { id: ObjectiveId }) {
+export const INFRA_DOMAIN_COLORS: Record<InfraDomainId, string> = {
+  networking: 'bg-sky-500',
+  compute: 'bg-brand-500',
+  'storage-data': 'bg-amber-500',
+  distributed: 'bg-violet-500',
+  reliability: 'bg-rose-500',
+  security: 'bg-emerald-600',
+  automation: 'bg-cyan-500',
+  observability: 'bg-orange-500',
+  'architecture-cost': 'bg-lime-600',
+  'interview-craft': 'bg-fuchsia-500',
+};
+export const infraDomainName = (d: InfraDomainId) => INFRA_DOMAINS.find((x) => x.id === d)?.name ?? d;
+
+export function ObjectiveChip({ id }: { id: ObjectiveId | string }) {
+  const t = INFRA_TOPICS.find((x) => x.id === id);
+  if (t)
+    return (
+      <span className="chip" title={t.description}>
+        <span className={`size-1.5 rounded-full ${INFRA_DOMAIN_COLORS[t.domain]}`} />
+        {t.name}
+      </span>
+    );
   const o = OBJECTIVES.find((x) => x.id === id);
   if (!o) return null;
   return (
@@ -89,6 +112,8 @@ export function Tabs<T extends string>({ value, onChange, options }: { value: T;
     </div>
   );
 }
+
+export const lessonPath = (lessonId: string) => (lessonId.startsWith('infra-') ? `/infra/lessons/${lessonId}` : `/lessons/${lessonId}`);
 
 export function useHashQuery(): URLSearchParams {
   const h = typeof window !== 'undefined' ? window.location.hash : '';

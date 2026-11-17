@@ -1,8 +1,8 @@
-import { lessonById, questionById, yamlChallenges, terminalChallenges, troubleshootingScenarios, labs } from '@kcna/content';
+import { anyLessonById as lessonById, anyQuestionById as questionById, behavioralPrompts, designCaseById, yamlChallenges, terminalChallenges, troubleshootingScenarios, labs } from '@kcna/content';
 import type { SearchHit, SearchIndex } from './search';
 import { parseManifests } from './yamlcheck';
 
-export const TUTOR_MODES = ['explain', 'socratic', 'exam-coach', 'troubleshoot', 'yaml-review', 'revision'] as const;
+export const TUTOR_MODES = ['explain', 'socratic', 'exam-coach', 'troubleshoot', 'yaml-review', 'revision', 'interviewer'] as const;
 export type TutorMode = (typeof TUTOR_MODES)[number];
 
 export const TUTOR_LIMITS = {
@@ -13,6 +13,7 @@ export const TUTOR_LIMITS = {
   maxPerformanceChars: 1500,
   maxLabErrorChars: 2000,
   maxPageChars: 80,
+  maxAnswerChars: 6000,
   retrievalDocs: 4,
   snippetChars: 600,
 } as const;
@@ -31,6 +32,12 @@ export interface TutorContext {
   /** what the learner is looking at, e.g. "diagram:cluster-architecture", "terminal:term-crashloop" */
   page?: string;
   labError?: string;
+  /** infra track: system design case being practised */
+  caseId?: string;
+  /** infra track: behavioural prompt being practised */
+  behavioralId?: string;
+  /** infra track: the learner's written design or STAR story to evaluate */
+  answer?: string;
 }
 
 export interface TutorRequest {
@@ -102,6 +109,18 @@ export function validateTutorRequest(body: unknown): V<TutorRequest> {
       if (typeof c.page !== 'string' || c.page.length > L.maxPageChars) return { ok: false, error: 'page is invalid.' };
       ctx.page = c.page;
     }
+    if (c.caseId !== undefined) {
+      if (typeof c.caseId !== 'string' || !designCaseById(c.caseId)) return { ok: false, error: 'Unknown caseId.' };
+      ctx.caseId = c.caseId;
+    }
+    if (c.behavioralId !== undefined) {
+      if (typeof c.behavioralId !== 'string' || !behavioralPrompts.some((b) => b.id === c.behavioralId)) return { ok: false, error: 'Unknown behavioralId.' };
+      ctx.behavioralId = c.behavioralId;
+    }
+    if (c.answer !== undefined) {
+      if (typeof c.answer !== 'string' || c.answer.length > L.maxAnswerChars) return { ok: false, error: `Answers are limited to ${L.maxAnswerChars} characters.` };
+      ctx.answer = c.answer;
+    }
     if (c.labError !== undefined) {
       if (typeof c.labError !== 'string') return { ok: false, error: 'labError must be a string.' };
       ctx.labError = c.labError.slice(0, L.maxLabErrorChars);
@@ -121,11 +140,13 @@ const MODE_INSTRUCTIONS: Record<TutorMode, string> = {
     'MODE: Troubleshooting. Work through Symptom → Hypothesis → Investigation → Evidence → Solution. Ask what the learner observes and suggest the next kubectl command to gather evidence. Do not reveal the final fix until the evidence supports it or the learner asks for it.',
   'yaml-review':
     'MODE: YAML review. Explain what the manifest does, field by field where it matters, then list problems. Treat the deterministic validator findings below as facts. Never invent fields; if unsure whether a field exists, say so.',
+  interviewer:
+    'MODE: Mock interviewer for a SENIOR cloud infrastructure / platform / SRE role. Ask exactly ONE question at a time and wait. Probe the candidate\'s last answer with a follow-up on trade-offs, failure modes, scale numbers, cost or operations before moving on; do not teach or give away answers during the interview. If a RUBRIC is provided, steer toward the areas not yet covered. When the candidate writes "feedback", "end interview" or submits a written design/story for evaluation, stop interviewing and give structured feedback: overall level (below / at / above senior bar), a 1–4 score per rubric area, 3 strengths, 3 most important gaps, and what a strong senior answer would add.',
   revision:
     "MODE: Revision coach. Use the learner's performance summary to explain WHY specific topics are recommended, then run a short focused revision: a key-idea recap and 2-3 quick practice questions (answers hidden until the learner replies).",
 };
 
-export const SYSTEM_RULES = `You are the KCNA Tutor inside the KCNA Interactive Learning Lab, helping a learner prepare for the CNCF Kubernetes and Cloud Native Associate exam.
+export const SYSTEM_RULES = `You are the tutor inside the KCNA Interactive Learning Lab, helping a learner prepare for the CNCF Kubernetes and Cloud Native Associate exam and for senior cloud infrastructure interviews.
 Rules:
 - Ground answers in the REFERENCE MATERIAL supplied with the question; cite it inline as [1], [2]. If the material does not cover something, say so and answer cautiously from general Kubernetes knowledge, marking it "(general knowledge — verify in the docs)".
 - Never invent kubectl commands, flags, API fields or documentation links. Only mention URLs that appear in the reference material.
@@ -138,7 +159,7 @@ Rules:
 - When something goes beyond the KCNA exam, label it "(beyond KCNA)".
 - If an AUTHORITATIVE ANSWER is provided, it is correct. Never contradict it; explain it.
 - Say when you are uncertain. Keep answers focused: usually under 200 words. Use short paragraphs, bullet lists and fenced code blocks.
-- Stay on Kubernetes, cloud-native and KCNA study topics; politely decline unrelated requests.`;
+- Stay on Kubernetes, cloud infrastructure, SRE/DevOps, KCNA and interview-preparation topics; politely decline unrelated requests.`;
 
 export function systemPrompt(mode: TutorMode, level: TutorRequest['level']): string {
   const lvl =
@@ -230,6 +251,17 @@ export function contextBlock(req: TutorRequest, hits: SearchHit[]): { text: stri
       : `- ${report.error}`;
     extra.push(`MANIFEST:\n\`\`\`yaml\n${ctx.yaml}\n\`\`\`\nDETERMINISTIC VALIDATOR FINDINGS:\n${findings}`);
   }
+  if (ctx.caseId) {
+    const c = designCaseById(ctx.caseId)!;
+    extra.push(
+      `SYSTEM DESIGN CASE: ${c.title}\nPrompt: ${c.prompt}\nNon-functional requirements: ${c.requirements.nonFunctional.join('; ')}\nRUBRIC (authoritative — grade against this):\n${c.rubric.map((r) => `- ${r.area}: ${r.signals.join('; ')}`).join('\n')}\nKey trade-offs a strong answer discusses: ${c.tradeoffs.map((t) => t.decision).join('; ')}`,
+    );
+  }
+  if (ctx.behavioralId) {
+    const b = behavioralPrompts.find((x) => x.id === ctx.behavioralId)!;
+    extra.push(`BEHAVIOURAL PROMPT: ${b.question}\nSIGNALS THE INTERVIEWER SCORES: ${b.signals.join('; ')}\nCommon pitfalls: ${b.pitfalls.join('; ')}`);
+  }
+  if (ctx.answer) extra.push(`CANDIDATE'S WRITTEN ANSWER:\n${ctx.answer}`);
   if (ctx.labError) extra.push(`LAB ERROR OUTPUT FROM THE LEARNER:\n\`\`\`\n${ctx.labError}\n\`\`\``);
   if (ctx.performance) extra.push(`LEARNER PERFORMANCE SUMMARY (from local progress):\n${ctx.performance}`);
   const text = [parts.length ? `REFERENCE MATERIAL:\n${parts.join('\n\n')}` : 'REFERENCE MATERIAL: none matched.', ...extra].join('\n\n');

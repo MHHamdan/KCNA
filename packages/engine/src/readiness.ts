@@ -1,4 +1,5 @@
 import {
+  isKcnaQuestion,
   knowledgeCheckFor,
   DOMAINS,
   OBJECTIVES,
@@ -20,45 +21,43 @@ export const HALF_LIFE_DAYS = 21;
 /** Distinct questions per objective that count as "covered". */
 export const COVERAGE_TARGET = 6;
 
-export interface ObjectiveMastery {
+export interface ObjectiveMastery extends Mastery {
   objective: ObjectiveId;
   domain: DomainId;
+}
+
+/** Beta-Binomial mastery with a uniform prior and exponential recency decay. */
+export interface Mastery {
   attempts: number;
   distinct: number;
-  /** recency-weighted posterior mean accuracy */
   mean: number;
-  /** conservative estimate: posterior mean minus one standard deviation */
   lower: number;
   evidence: number;
 }
 
-/** Beta-Binomial mastery with a uniform prior and exponential recency decay. */
+/** Beta-Binomial mastery with a uniform prior and exponential recency decay, for any topic id. */
+export function masteryFor(attempts: Attempt[], id: string, now = Date.now()): Mastery {
+  const mine = attempts.filter((a) => a.objective === id);
+  let wc = 0;
+  let ww = 0;
+  for (const a of mine) {
+    const w = Math.pow(0.5, Math.max(0, now - a.at) / DAY / HALF_LIFE_DAYS) * (a.source === 'review' ? 0.8 : 1);
+    ww += w;
+    if (a.correct) wc += w;
+  }
+  const alpha = 1 + wc;
+  const beta = 1 + (ww - wc);
+  const n = alpha + beta;
+  const mean = alpha / n;
+  const sd = Math.sqrt((alpha * beta) / (n * n * (n + 1)));
+  // no evidence → no credit (the prior alone must not raise mastery)
+  return { attempts: mine.length, distinct: new Set(mine.map((a) => a.qid)).size, mean, lower: mine.length ? Math.max(0, mean - sd) : 0, evidence: ww };
+}
+
 export function objectiveMastery(attempts: Attempt[], now = Date.now()): Record<ObjectiveId, ObjectiveMastery> {
   const out = {} as Record<ObjectiveId, ObjectiveMastery>;
   for (const o of OBJECTIVES) {
-    const mine = attempts.filter((a) => a.objective === o.id);
-    let wc = 0;
-    let ww = 0;
-    for (const a of mine) {
-      const w = Math.pow(0.5, Math.max(0, now - a.at) / DAY / HALF_LIFE_DAYS) * (a.source === 'review' ? 0.8 : 1);
-      ww += w;
-      if (a.correct) wc += w;
-    }
-    const alpha = 1 + wc;
-    const beta = 1 + (ww - wc);
-    const n = alpha + beta;
-    const mean = alpha / n;
-    const sd = Math.sqrt((alpha * beta) / (n * n * (n + 1)));
-    out[o.id] = {
-      objective: o.id,
-      domain: o.domain,
-      attempts: mine.length,
-      distinct: new Set(mine.map((a) => a.qid)).size,
-      mean,
-      // no evidence → no credit (the prior alone must not raise mastery)
-      lower: mine.length ? Math.max(0, mean - sd) : 0,
-      evidence: ww,
-    };
+    out[o.id] = { objective: o.id, domain: o.domain, ...masteryFor(attempts, o.id, now) };
   }
   return out;
 }
@@ -77,7 +76,7 @@ export const objectiveWeight = (o: ObjectiveId) => {
 
 export interface RepeatedMistake {
   qid: string;
-  objective: ObjectiveId;
+  objective: Attempt['objective'];
   wrongCount: number;
 }
 
@@ -145,12 +144,15 @@ export const READY_RULES = {
   mockWindowDays: 30,
 } as const;
 
-export function computeReadiness(p: Progress, now = Date.now()): Readiness {
+export function computeReadiness(all: Progress, now = Date.now()): Readiness {
+  // the KCNA indicator only considers KCNA questions (the infra track has its own)
+  const p: Progress = { ...all, attempts: all.attempts.filter((a) => isKcnaQuestion(a.qid)) };
   const objectives = objectiveMastery(p.attempts, now);
   const domains = domainMastery(objectives);
   const knowledge = DOMAINS.reduce((s, d) => s + (d.weight / 100) * domains[d.id], 0);
   const coverage = OBJECTIVES.reduce((s, o) => s + objectiveWeight(o.id) * Math.min(1, objectives[o.id].distinct / COVERAGE_TARGET), 0);
-  const retention = retentionScore(p.cards).score;
+  const kcnaCardIds = new Set(flashcards.map((f) => f.id));
+  const retention = retentionScore(Object.fromEntries(Object.entries(p.cards).filter(([id]) => kcnaCardIds.has(id)))).score;
 
   const fullMocks = p.exams.filter((e) => e.mode === 'full' && now - e.finishedAt <= READY_RULES.mockWindowDays * DAY).sort((a, b) => b.finishedAt - a.finishedAt);
   const recent = fullMocks.slice(0, 3).map((e) => e.score);

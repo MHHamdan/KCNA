@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
-import { questionById, type Question } from '@kcna/content';
-import { addAttempts, dueQuestionReviews, recentWrong, repeatedMistakes } from '@kcna/engine';
+import { anyQuestionById as questionById, type Question } from '@kcna/content';
+import { addAttempts, type Attempt, dueQuestionReviews, recentWrong, repeatedMistakes } from '@kcna/engine';
 import { updateProgress, useProgress } from '../lib/store';
 import { PageHeader } from '../components/Layout';
 import { QuestionCard } from '../components/QuestionCard';
@@ -19,7 +19,7 @@ export function ReviewPage() {
   const ids = tab === 'due' ? due : tab === 'repeated' ? repeated.map((r) => r.qid) : recent;
 
   if (session) {
-    const q = questionById(session[i]) as Question | undefined;
+    const q = questionById(session[i]) as Question<string, string> | undefined;
     if (!q || i >= session.length)
       return (
         <div>
@@ -39,7 +39,7 @@ export function ReviewPage() {
           total={session.length}
           onAnswered={(ok, sel) => {
             setAnswered(true);
-            updateProgress((pr) => addAttempts(pr, [{ qid: q.id, objective: q.objective, correct: ok, at: Date.now(), source: 'review', selected: sel }]));
+            updateProgress((pr) => addAttempts(pr, [{ qid: q.id, objective: q.objective as Attempt['objective'], correct: ok, at: Date.now(), source: 'review', selected: sel }]));
           }}
         />
         {answered && (
@@ -82,7 +82,7 @@ export function ReviewPage() {
                 .sort((a, b) => b[1] - a[1])
                 .map(([o, n]) => (
                   <li key={o} className="chip">
-                    {objectiveName(o as Question['objective'])} · {n}
+                    {objectiveName(o)} · {n}
                   </li>
                 ))}
             </ul>

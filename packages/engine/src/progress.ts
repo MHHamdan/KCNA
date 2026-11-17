@@ -1,4 +1,4 @@
-import type { DomainId, ObjectiveId } from '@kcna/content';
+import type { DomainId, InfraTopicId, ObjectiveId } from '@kcna/content';
 import { newCard, review, type CardState } from './srs';
 
 export const PROGRESS_VERSION = 1;
@@ -8,7 +8,8 @@ export const MAX_TUTOR_MESSAGES = 40;
 
 export interface Attempt {
   qid: string;
-  objective: ObjectiveId;
+  /** KCNA ObjectiveId or infra InfraTopicId */
+  objective: ObjectiveId | InfraTopicId;
   correct: boolean;
   /** epoch ms */
   at: number;
@@ -28,6 +29,14 @@ export interface ExamRecord {
   flagged: string[];
   score: number; // 0..1
   byDomain: Partial<Record<DomainId, { correct: number; total: number }>>;
+}
+
+export interface DesignAttempt {
+  at: number;
+  /** rubric signals the learner confirmed their design covered ("area::signal") */
+  checked: string[];
+  /** the learner's written design (kept locally) */
+  answer: string;
 }
 
 export interface Preferences {
@@ -56,6 +65,12 @@ export interface Progress {
   cards: Record<string, CardState>;
   /** missed questions scheduled for spaced review (question id -> schedule) */
   questionReviews: Record<string, CardState>;
+  /** infra track: system-design cases practised (rubric signals self-checked, learner's own design notes) */
+  designPractice: Record<string, DesignAttempt>;
+  /** infra track: the learner's own STAR stories per behavioural prompt */
+  behavioralStories: Record<string, { at: number; story: string }>;
+  /** infra track: timestamps of completed AI mock interviews */
+  mockInterviews: number[];
   /** YYYY-MM-DD -> number of learning events that day */
   activity: Record<string, number>;
   prefs: Preferences;
@@ -74,6 +89,9 @@ export function emptyProgress(now = Date.now()): Progress {
     exams: [],
     cards: {},
     questionReviews: {},
+    designPractice: {},
+    behavioralStories: {},
+    mockInterviews: [],
     activity: {},
     prefs: { theme: 'system', tutorLevel: 'beginner', saveTutorHistory: false, dailyGoalMinutes: 30 },
     tutorHistory: [],
@@ -179,6 +197,14 @@ export function importProgress(json: string): Progress {
   for (const [id, c] of Object.entries(isObj(p.questionReviews) ? p.questionReviews : {}))
     if (isObj(c) && typeof c.due === 'number' && typeof c.ef === 'number' && typeof c.interval === 'number')
       questionReviews[id] = c as unknown as CardState;
+  const designPractice: Progress['designPractice'] = {};
+  for (const [id, d] of Object.entries(isObj(p.designPractice) ? p.designPractice : {}))
+    if (isObj(d) && typeof d.at === 'number' && Array.isArray(d.checked))
+      designPractice[id] = { at: d.at, checked: d.checked.filter((x): x is string => typeof x === 'string'), answer: typeof d.answer === 'string' ? d.answer.slice(0, 20000) : '' };
+  const behavioralStories: Progress['behavioralStories'] = {};
+  for (const [id, b] of Object.entries(isObj(p.behavioralStories) ? p.behavioralStories : {}))
+    if (isObj(b) && typeof b.at === 'number' && typeof b.story === 'string') behavioralStories[id] = { at: b.at, story: b.story.slice(0, 10000) };
+  const mockInterviews = Array.isArray(p.mockInterviews) ? p.mockInterviews.filter((x): x is number => typeof x === 'number').slice(-200) : [];
   const prefs = isObj(p.prefs) ? { ...base.prefs, ...(p.prefs as Partial<Preferences>) } : base.prefs;
   const tutorHistory = Array.isArray(p.tutorHistory)
     ? (p.tutorHistory as unknown[])
@@ -197,6 +223,9 @@ export function importProgress(json: string): Progress {
     exams: exams.slice(-MAX_EXAMS),
     cards,
     questionReviews,
+    designPractice,
+    behavioralStories,
+    mockInterviews,
     prefs,
     tutorHistory,
   };

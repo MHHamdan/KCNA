@@ -1,6 +1,6 @@
 import { useEffect, useMemo } from 'react';
 import { Link, useParams } from 'react-router-dom';
-import { comparisons, knowledgeCheckFor, lessonById, lessons, type ObjectiveId } from '@kcna/content';
+import { anyLessonById, comparisons, infraKnowledgeCheckFor, infraLessons, knowledgeCheckFor, lessons, type Lesson } from '@kcna/content';
 import { addAttempts, lessonMastered, recordActivity } from '@kcna/engine';
 import { updateProgress, useProgress } from '../lib/store';
 import { usePageContext } from '../lib/tutorContext';
@@ -25,14 +25,17 @@ function Section({ id, title, children }: { id: string; title: string; children:
 
 export function LessonPage() {
   const { id = '' } = useParams();
-  const lesson = lessonById(id);
+  const lesson = anyLessonById(id) as Lesson<string> | undefined;
+  const infra = id.startsWith('infra-');
+  const trackLessons: Lesson<string>[] = infra ? infraLessons : lessons;
+  const base = infra ? '/infra/lessons' : '/lessons';
   const p = useProgress();
   const q = useHashQuery();
   usePageContext({ lessonId: lesson?.id });
-  const checks = useMemo(() => (lesson ? knowledgeCheckFor(lesson.id) : []), [lesson]);
-  const idx = lessons.findIndex((l) => l.id === id);
-  const prev = lessons[idx - 1];
-  const next = lessons[idx + 1];
+  const checks = useMemo(() => (lesson ? (infra ? infraKnowledgeCheckFor(lesson.id) : knowledgeCheckFor(lesson.id)) : []), [lesson, infra]);
+  const idx = trackLessons.findIndex((l) => l.id === id);
+  const prev = trackLessons[idx - 1];
+  const next = trackLessons[idx + 1];
   const section = q.get('s');
   useEffect(() => {
     if (section) setTimeout(() => document.getElementById(`s-${section}`)?.scrollIntoView({ behavior: 'smooth' }), 50);
@@ -41,7 +44,7 @@ export function LessonPage() {
   if (!lesson)
     return (
       <div className="card">
-        Lesson not found. <Link to="/path" className="underline">Back to the learning path</Link>
+        Lesson not found. <Link to={infra ? '/infra' : '/path'} className="underline">Back to the learning path</Link>
       </div>
     );
   const done = !!p.lessonsCompleted[lesson.id];
@@ -51,15 +54,15 @@ export function LessonPage() {
       <div className="min-w-0 space-y-8">
         <div>
           <p className="label mb-1">
-            <Link to="/path" className="hover:underline">
-              Stage {lesson.stage}
+            <Link to={infra ? '/infra' : '/path'} className="hover:underline">
+              {infra ? 'Cloud Infrastructure · Senior interview' : `Stage ${lesson.stage}`}
             </Link>{' '}
             · {lesson.estMinutes} min
           </p>
           <PageHeader title={lesson.title} subtitle={lesson.summary} />
           <div className="-mt-3 flex flex-wrap items-center gap-2">
             <ScopeBadge scope={lesson.scope} />
-            {lesson.objectives.map((o: ObjectiveId) => (
+            {lesson.objectives.map((o) => (
               <ObjectiveChip key={o} id={o} />
             ))}
             <AskAI question={`Explain "${lesson.title}" to me.`} context={{ lessonId: lesson.id }} />
@@ -134,6 +137,47 @@ export function LessonPage() {
             </div>
           </Section>
         )}
+        {lesson.interview && (
+          <Section id="interview" title="Interview angle: how a senior answers">
+            <div className="space-y-4">
+              <div className="rounded-lg border-l-4 border-violet-500 bg-violet-50/60 p-3 dark:bg-violet-500/5">
+                <Md>{lesson.interview.seniorAnswer}</Md>
+              </div>
+              {lesson.interview.numbers && lesson.interview.numbers.length > 0 && (
+                <div>
+                  <p className="label mb-1">Numbers to know</p>
+                  <ul className="grid gap-1 text-sm sm:grid-cols-2">
+                    {lesson.interview.numbers.map((n) => (
+                      <li key={n} className="rounded bg-slate-100 px-2 py-1 font-mono text-[12.5px] dark:bg-ink-850">
+                        {n}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+              <div>
+                <p className="label mb-1">Follow-ups interviewers ask</p>
+                <div className="space-y-2">
+                  {lesson.interview.followUps.map((f) => (
+                    <details key={f.q} className="rounded-lg border border-slate-200 p-3 dark:border-slate-800">
+                      <summary className="cursor-pointer font-medium">{f.q}</summary>
+                      <Md className="mt-2 text-sm">{f.a}</Md>
+                    </details>
+                  ))}
+                </div>
+              </div>
+              <div>
+                <p className="label mb-1">Red flags (what sounds junior)</p>
+                <ul className="list-disc space-y-1 pl-5 text-sm text-rose-800 dark:text-rose-300">
+                  {lesson.interview.redFlags.map((r) => (
+                    <li key={r}>{r}</li>
+                  ))}
+                </ul>
+              </div>
+              <AskAI label="Mock-interview me on this topic" mode="interviewer" question={`Interview me on "${lesson.title}" for a senior cloud infrastructure role. Start with your first question.`} context={{ lessonId: lesson.id }} />
+            </div>
+          </Section>
+        )}
         <Section id="check" title="Knowledge check">
           <p className={`mb-3 text-sm ${lessonMastered(p, lesson.id) ? 'font-medium text-emerald-700 dark:text-emerald-300' : 'text-slate-500'}`}>
             {lessonMastered(p, lesson.id)
@@ -199,12 +243,12 @@ export function LessonPage() {
           </button>
           <div className="flex gap-2">
             {prev && (
-              <Link className="btn-ghost" to={`/lessons/${prev.id}`}>
+              <Link className="btn-ghost" to={`${base}/${prev.id}`}>
                 ← {prev.title}
               </Link>
             )}
             {next && (
-              <Link className="btn-ghost" to={`/lessons/${next.id}`}>
+              <Link className="btn-ghost" to={`${base}/${next.id}`}>
                 {next.title} →
               </Link>
             )}
@@ -223,6 +267,7 @@ export function LessonPage() {
             ['misconceptions', 'Misconceptions'],
             ['example', 'Example'],
             ['exercise', 'Exercise'],
+            ...(lesson.interview ? [['interview', 'Interview angle']] : []),
             ['check', 'Knowledge check'],
             ['faq', 'FAQ'],
             ['refs', 'References'],

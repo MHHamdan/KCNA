@@ -4,7 +4,7 @@ import type { Question } from '@kcna/content';
 import { isCorrect } from '@kcna/engine';
 import { Md, MdInline } from './Md';
 import { AskAI, explainWrongPrompt } from './TutorPanel';
-import { ObjectiveChip, References } from './ui';
+import { ObjectiveChip, References, lessonPath } from './ui';
 
 const L = (i: number) => String.fromCharCode(65 + i);
 
@@ -16,7 +16,7 @@ export function QuestionCard({
   total,
   showLesson = true,
 }: {
-  q: Question;
+  q: Question<string, string>;
   onAnswered?: (correct: boolean, selected: number[]) => void;
   index?: number;
   total?: number;
@@ -44,7 +44,7 @@ export function QuestionCard({
         )}
         <ObjectiveChip id={q.objective} />
         <span className="chip">Difficulty {q.difficulty}/3</span>
-        <span className="chip">Unofficial practice</span>
+        <span className="chip">{q.id.startsWith('iq-') ? 'Senior interview practice' : 'Unofficial practice'}</span>
       </div>
       <Md className="text-[15px] font-medium text-slate-900 dark:text-slate-100">{q.prompt}</Md>
       {multi && <p className="mt-1 text-xs font-semibold text-amber-700 dark:text-amber-300">Select {q.answer.length}.</p>}
@@ -90,7 +90,7 @@ export function QuestionCard({
             {!correct && <AskAI label="Explain why my answer was wrong" mode="exam-coach" question={explainWrongPrompt(q.id, sel)} context={{ questionId: q.id, selected: sel, lessonId: q.lessonId }} />}
             {correct && <AskAI label="Ask AI to go deeper" question="I got this right. What related concept could the exam test next, and how?" context={{ questionId: q.id, selected: sel, lessonId: q.lessonId }} mode="exam-coach" />}
             {showLesson && (
-              <Link to={`/lessons/${q.lessonId}`} className="btn-ghost">
+              <Link to={lessonPath(q.lessonId)} className="btn-ghost">
                 Open lesson
               </Link>
             )}

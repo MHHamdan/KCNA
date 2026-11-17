@@ -18,6 +18,7 @@ import { FlashcardsPage } from './pages/Flashcards';
 import { ReadinessPage } from './pages/Readiness';
 import { SettingsPage } from './pages/Settings';
 import { TutorPage } from './pages/TutorPage';
+import { InfraBehavioral, InfraDesignCase, InfraDesignList, InfraHome, InfraMock, InfraReadinessPage, InfraResourcesPage } from './pages/Infra';
 
 // Hash routing works identically on GitHub Pages (/KCNA/) and Hugging Face (/)
 // without server-side rewrites.
@@ -51,6 +52,16 @@ export function App() {
             <Route path="/resources" element={<ResourcesPage />} />
             <Route path="/search" element={<SearchPage />} />
             <Route path="/settings" element={<SettingsPage />} />
+            <Route path="/infra" element={<InfraHome />} />
+            <Route path="/infra/lessons/:id" element={<LessonPage />} />
+            <Route path="/infra/practice" element={<PracticePage track="infra" />} />
+            <Route path="/infra/design" element={<InfraDesignList />} />
+            <Route path="/infra/design/:id" element={<InfraDesignCase />} />
+            <Route path="/infra/behavioral" element={<InfraBehavioral />} />
+            <Route path="/infra/mock" element={<InfraMock />} />
+            <Route path="/infra/flashcards" element={<FlashcardsPage track="infra" />} />
+            <Route path="/infra/readiness" element={<InfraReadinessPage />} />
+            <Route path="/infra/resources" element={<InfraResourcesPage />} />
             <Route
               path="*"
               element={

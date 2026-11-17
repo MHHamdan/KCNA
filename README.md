@@ -27,6 +27,20 @@ An interactive study platform for the CNCF **Kubernetes and Cloud Native Associa
 | Progress | Stored locally in your browser; export/import JSON, CSV study history, reset. |
 | Phone | Installable (Add to Home Screen) and works offline after the first visit — everything except the AI tutor. |
 
+## Cloud Infrastructure — Senior Interview Prep (separate track)
+
+A standalone track at `#/infra` for senior and staff cloud infrastructure, platform and SRE interviews. It has:
+
+- 26 lessons, each with an interview angle covering how seniors answer, follow-ups, red flags and numbers to know
+- 152 scenario and trade-off questions
+- 10 timed system design cases, each with a reference answer and grading rubric
+- 14 behavioural prompts with your own STAR story bank
+- 110 flashcards
+- an AI **mock interviewer**
+- its own readiness page
+
+Details are in [docs/INFRA_TRACK.md](docs/INFRA_TRACK.md).
+
 ## Quick start (development)
 
 ```bash
@@ -61,6 +75,7 @@ The tutor needs an OpenAI-compatible model server at `LLAMA_URL` (default `http:
 - [SECURITY](docs/SECURITY.md): credentials, threat model, privacy
 - [EXAM_READINESS](docs/EXAM_READINESS.md): the readiness formula
 - [CONTENT_GUIDELINES](docs/CONTENT_GUIDELINES.md): how to add lessons, questions, labs and challenges
+- [INFRA_TRACK](docs/INFRA_TRACK.md): the senior cloud infrastructure interview track
 
 ## Cost
 

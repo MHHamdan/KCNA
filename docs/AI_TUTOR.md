@@ -30,6 +30,7 @@ Each mode has its own instructions in the system prompt (`packages/engine/src/tu
 | Troubleshoot | Symptom → Hypothesis → Investigation → Evidence → Solution. Suggests the next kubectl command and holds back the fix until the evidence supports it. |
 | YAML review | Field-by-field explanation plus problems. Treats the deterministic validator's findings as facts and never invents fields. |
 | Revision | Uses the performance summary to explain recommendations, then runs a short drill. |
+| Mock interviewer | Senior infrastructure interviewer: asks one question at a time and probes trade-offs and failure modes. When given a design case or behavioural prompt, it steers by that rubric and scores the answer 1–4 per area on request. |
 
 A **level** switch (Beginner / Technical) changes how much analogy or jargon the answers use.
 

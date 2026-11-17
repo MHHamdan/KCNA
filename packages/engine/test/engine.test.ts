@@ -134,10 +134,13 @@ describe('spaced repetition (SM-2)', () => {
   });
 });
 
+/** Attempts on real KCNA questions of one objective (KCNA readiness ignores unknown question ids). */
 function attempts(objective: Attempt['objective'], correct: number, wrong: number, at = Date.now()): Attempt[] {
+  const ids = questions.filter((q) => q.objective === objective).map((q) => q.id);
+  const qid = (i: number) => ids[i % ids.length];
   return [
-    ...Array.from({ length: correct }, (_, i) => ({ qid: `${objective}-c${i}`, objective, correct: true, at, source: 'quiz' as const })),
-    ...Array.from({ length: wrong }, (_, i) => ({ qid: `${objective}-w${i}`, objective, correct: false, at, source: 'quiz' as const })),
+    ...Array.from({ length: correct }, (_, i) => ({ qid: qid(i), objective, correct: true, at, source: 'quiz' as const })),
+    ...Array.from({ length: wrong }, (_, i) => ({ qid: qid(correct + i), objective, correct: false, at, source: 'quiz' as const })),
   ];
 }
 

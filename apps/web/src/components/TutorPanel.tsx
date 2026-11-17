@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { contentIndex, TUTOR_MODES, type TutorMode } from '@kcna/engine';
-import { lessonById, questionById } from '@kcna/content';
+import { anyLessonById, anyQuestionById as questionById } from '@kcna/content';
 import { useTutor, type TutorMessage } from '../lib/tutorContext';
 import { updateProgress, useProgress } from '../lib/store';
 import { Md, MdInline } from './Md';
@@ -16,6 +16,7 @@ export const MODE_INFO: Record<TutorMode, { label: string; hint: string }> = {
   troubleshoot: { label: 'Troubleshoot', hint: 'Symptom → hypothesis → evidence → fix' },
   'yaml-review': { label: 'YAML review', hint: 'Paste a manifest for a validated review' },
   revision: { label: 'Revision', hint: 'Uses your progress to drill weak topics' },
+  interviewer: { label: 'Mock interviewer', hint: 'Senior infra interviewer: one question at a time, then scored feedback' },
 };
 
 const FOLLOW_UPS: Record<TutorMode, string[]> = {
@@ -25,6 +26,7 @@ const FOLLOW_UPS: Record<TutorMode, string[]> = {
   troubleshoot: ['What command should I run next?', 'What does this evidence tell us?', 'Show me the fix'],
   'yaml-review': ['What would happen if I applied this?', 'How do I make it more secure?', 'Explain the selector'],
   revision: ['Why are these topics recommended?', 'Start a 5-minute drill', 'Make me a 7-day plan'],
+  interviewer: ['Can you rephrase the question?', 'Give me a harder follow-up', 'End interview — give me feedback'],
 };
 
 function StatusPill() {
@@ -133,6 +135,10 @@ function TypingDots() {
 
 export function TutorConversation({ compact = false }: { compact?: boolean }) {
   const t = useTutor();
+  const endInterview = () => {
+    t.ask('End interview — give me feedback.', { mode: 'interviewer' });
+    updateProgress((p) => ({ ...p, mockInterviews: [...p.mockInterviews, Date.now()].slice(-200) }));
+  };
   const prefs = useProgress().prefs;
   const [input, setInput] = useState('');
   const endRef = useRef<HTMLDivElement>(null);
@@ -141,10 +147,14 @@ export function TutorConversation({ compact = false }: { compact?: boolean }) {
     endRef.current?.scrollIntoView({ block: 'end' });
   }, [t.messages]);
   const ctx = t.pageContext;
-  const ctxLabel = ctx.questionId
+  const ctxLabel = ctx.caseId
+    ? `System design: ${ctx.caseId}`
+    : ctx.behavioralId
+      ? `Behavioural: ${ctx.behavioralId}`
+      : ctx.questionId
     ? `Question ${ctx.questionId}`
     : ctx.lessonId
-      ? `Lesson: ${lessonById(ctx.lessonId)?.title}`
+      ? `Lesson: ${anyLessonById(ctx.lessonId)?.title}`
       : ctx.page
         ? `Viewing: ${ctx.page.replace(':', ' — ')}`
         : null;
@@ -217,7 +227,7 @@ export function TutorConversation({ compact = false }: { compact?: boolean }) {
         {t.messages.length > 0 && !t.streaming && !t.messages[t.messages.length - 1].error && (
           <div className="flex flex-wrap gap-1.5">
             {FOLLOW_UPS[t.mode].map((q) => (
-              <button key={q} type="button" className="chip hover:bg-slate-100 dark:hover:bg-ink-800" onClick={() => t.ask(q)}>
+              <button key={q} type="button" className="chip hover:bg-slate-100 dark:hover:bg-ink-800" onClick={() => (q.startsWith('End interview') ? endInterview() : t.ask(q))}>
                 {q}
               </button>
             ))}
@@ -268,6 +278,11 @@ export function TutorConversation({ compact = false }: { compact?: boolean }) {
             </button>
           )}
         </div>
+        {t.mode === 'interviewer' && t.messages.length > 1 && !t.streaming && (
+          <button type="button" className="btn-ai mt-2 w-full" onClick={endInterview}>
+            End interview &amp; get scored feedback
+          </button>
+        )}
         <div className="mt-2 flex items-center justify-between text-[11px] text-slate-500">
           <span>AI can be wrong — check the cited sources.</span>
           <button type="button" className="underline" onClick={t.clear}>
@@ -298,7 +313,7 @@ export function TutorDrawer() {
       <div className="flex items-center justify-between px-4 py-3">
         <div className="flex items-center gap-2">
           <Icon name="spark" className="size-5 text-violet-500" />
-          <h2 className="font-semibold">KCNA Tutor</h2>
+          <h2 className="font-semibold">AI Tutor</h2>
           <StatusPill />
         </div>
         <div className="flex items-center gap-1">

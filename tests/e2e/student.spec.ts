@@ -203,7 +203,7 @@ test('visualizers: step through the kubectl apply sequence', async ({ page }) =>
 
 test('accessibility: no serious violations on key pages', async ({ page }) => {
   await fresh(page);
-  for (const path of ['/#/', '/#/lessons/pods', '/#/exam', '/#/readiness', '/#/terminal']) {
+  for (const path of ['/#/', '/#/lessons/pods', '/#/exam', '/#/readiness', '/#/terminal', '/#/infra', '/#/infra/lessons/infra-rel-slo', '/#/infra/design/sd-payments-dr', '/#/infra/behavioral', '/#/infra/readiness']) {
     await page.goto(path);
     await page.waitForLoadState('networkidle');
     const r = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa']).analyze();
@@ -221,7 +221,7 @@ test('responsive: mobile layout has a menu and no horizontal scroll @mobile', as
     expect(overflow, path).toBeLessThanOrEqual(1);
   }
   await page.getByRole('button', { name: 'Open menu' }).click();
-  await page.getByRole('dialog', { name: 'Menu' }).getByRole('link', { name: 'Flashcards' }).click();
+  await page.getByRole('dialog', { name: 'Menu' }).getByRole('link', { name: 'Flashcards', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'Flashcards' })).toBeVisible();
 });
 
@@ -246,4 +246,48 @@ test('phone install + spaced review: manifest served, missed questions are sched
   await page.goto('/#/review');
   await expect(page.getByText(/[1-9]\d* question\(s\) are in your review queue/)).toBeVisible();
   await expect(page.getByRole('tab', { name: /Due today/ })).toBeVisible();
+});
+
+test('senior infra track: lesson interview angle, questions, design rubric, STAR story, mock, readiness', async ({ page }) => {
+  await fresh(page);
+  await page.goto('/#/infra');
+  await expect(page.getByRole('heading', { name: /Cloud Infrastructure — Senior Interview Prep/ })).toBeVisible();
+
+  await page.goto('/#/infra/lessons/infra-dist-patterns');
+  await expect(page.getByRole('heading', { name: 'Interview angle: how a senior answers' })).toBeVisible();
+  await expect(page.getByText('Red flags (what sounds junior)')).toBeVisible();
+  await page.getByRole('button', { name: 'Mark lesson complete' }).click();
+
+  await page.goto('/#/infra/practice?topic=dist-patterns');
+  const q = page.getByTestId('question-card');
+  await q.locator('label').first().click();
+  if ((await q.locator('input').first().getAttribute('type')) === 'checkbox') await q.locator('label').nth(1).click();
+  await q.getByRole('button', { name: 'Check answer' }).click();
+  await expect(q.getByRole('status')).toBeVisible();
+
+  await page.goto('/#/infra/design/sd-multi-region-web');
+  await page.getByLabel('Your design (saved on this device)').fill('Requirements: 99.99% across two regions, active-active, global load balancing, regional failover…');
+  await page.locator('details', { hasText: 'Reference architecture' }).locator('summary').click();
+  const boxes = page.locator('fieldset input[type=checkbox]');
+  const n = await boxes.count();
+  for (let i = 0; i < n; i++) await boxes.nth(i).check();
+  await expect(page.getByText(/\d+\/\d+ \(100%\)/)).toBeVisible();
+
+  await page.goto('/#/infra/behavioral');
+  await page.getByLabel('Your STAR story (saved on this device)').fill('Situation: our checkout latency SLO was burning. '.repeat(12));
+  await page.getByRole('button', { name: 'Save story' }).click();
+
+  // mock interviewer through the real API (mock model)
+  await page.goto('/#/infra/mock');
+  await page.getByRole('button', { name: 'Start deep dive' }).click();
+  const drawer = page.getByRole('complementary', { name: 'AI tutor' });
+  await expect(drawer.getByText(/Mock tutor answer \(history=1\)/)).toBeVisible();
+  await drawer.getByRole('button', { name: /End interview & get scored feedback/ }).click();
+  await expect(drawer.getByText(/history=3/)).toBeVisible();
+
+  await page.reload();
+  await page.goto('/#/infra/readiness');
+  await expect(page.getByText('1 solid design(s)')).toBeVisible();
+  await expect(page.getByText('1 completed')).toBeVisible();
+  await expect(page.getByText(/1 story\/stories/)).toBeVisible();
 });
