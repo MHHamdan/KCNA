@@ -7,7 +7,7 @@ export default defineConfig({
   timeout: 60_000,
   retries: process.env.CI ? 1 : 0,
   reporter: process.env.CI ? [['list'], ['html', { open: 'never' }]] : 'list',
-  use: { baseURL: 'http://127.0.0.1:4173', trace: 'retain-on-failure', acceptDownloads: true },
+  use: { baseURL: 'http://127.0.0.1:4173', trace: 'retain-on-failure', acceptDownloads: true, serviceWorkers: 'block' },
   projects: [
     { name: 'desktop', use: { ...devices['Desktop Chrome'] }, grepInvert: /@mobile/ },
     { name: 'mobile', use: { ...devices['Pixel 7'] }, grep: /@mobile/ },

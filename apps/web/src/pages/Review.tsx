@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { questionById, type Question } from '@kcna/content';
-import { addAttempts, recentWrong, repeatedMistakes } from '@kcna/engine';
+import { addAttempts, dueQuestionReviews, recentWrong, repeatedMistakes } from '@kcna/engine';
 import { updateProgress, useProgress } from '../lib/store';
 import { PageHeader } from '../components/Layout';
 import { QuestionCard } from '../components/QuestionCard';
@@ -8,13 +8,15 @@ import { Empty, Tabs, objectiveName } from '../components/ui';
 
 export function ReviewPage() {
   const p = useProgress();
-  const [tab, setTab] = useState<'repeated' | 'recent'>('repeated');
+  const [tab, setTab] = useState<'due' | 'repeated' | 'recent'>('due');
   const [session, setSession] = useState<string[] | null>(null);
   const [i, setI] = useState(0);
   const [answered, setAnswered] = useState(false);
   const repeated = useMemo(() => repeatedMistakes(p.attempts), [p.attempts]);
   const recent = useMemo(() => recentWrong(p.attempts), [p.attempts]);
-  const ids = tab === 'repeated' ? repeated.map((r) => r.qid) : recent;
+  const due = useMemo(() => dueQuestionReviews(p), [p]);
+  const scheduled = Object.keys(p.questionReviews).length;
+  const ids = tab === 'due' ? due : tab === 'repeated' ? repeated.map((r) => r.qid) : recent;
 
   if (session) {
     const q = questionById(session[i]) as Question | undefined;
@@ -57,18 +59,19 @@ export function ReviewPage() {
   }
   return (
     <div>
-      <PageHeader title="Smart review" subtitle="Wrong-answer review driven by your history. Repeated mistakes (missed twice or more and not yet corrected) usually point to a misconception." />
+      <PageHeader title="Smart review" subtitle={`Every question you miss comes back on a spaced schedule (1 day, then about 6, then longer) until you have answered it correctly over three weeks. ${scheduled} question(s) are in your review queue.`} />
       <Tabs
         value={tab}
         onChange={setTab}
         options={[
+          { value: 'due', label: `Due today (${due.length})` },
           { value: 'repeated', label: `Repeated mistakes (${repeated.length})` },
           { value: 'recent', label: `Currently wrong (${recent.length})` },
         ]}
       />
       {ids.length === 0 ? (
         <div className="mt-4">
-          <Empty>{p.attempts.length ? 'Nothing to review here — nice work.' : 'Answer some practice questions first.'}</Empty>
+          <Empty>{!p.attempts.length ? 'Answer some practice questions first.' : tab === 'due' && scheduled ? `Nothing due today. ${scheduled} question(s) are scheduled for later.` : 'Nothing to review here — nice work.'}</Empty>
         </div>
       ) : (
         <div className="mt-4 space-y-4">

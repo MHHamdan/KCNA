@@ -1,4 +1,5 @@
 import {
+  knowledgeCheckFor,
   DOMAINS,
   OBJECTIVES,
   labs,
@@ -9,7 +10,7 @@ import {
   type DomainId,
   type ObjectiveId,
 } from '@kcna/content';
-import type { Attempt, Progress } from './progress';
+import { dueQuestionReviews, type Attempt, type Progress } from './progress';
 import { dueCards, retentionScore } from './srs';
 import { flashcards } from '@kcna/content';
 
@@ -185,7 +186,12 @@ export function computeReadiness(p: Progress, now = Date.now()): Readiness {
   const R = READY_RULES;
   const minDomain = Math.min(...Object.values(domains));
   const checklist: ChecklistItem[] = [
-    { id: 'lessons', label: 'Studied every KCNA lesson', met: lessons.filter((l) => l.scope === 'kcna').every((l) => p.lessonsCompleted[l.id]), detail: `${lessonsDone}/${lessons.length} lessons completed` },
+    {
+      id: 'lessons',
+      label: 'Mastered every KCNA lesson (knowledge check all correct)',
+      met: lessons.filter((l) => l.scope === 'kcna').every((l) => lessonMastered(p, l.id)),
+      detail: `${lessons.filter((l) => lessonMastered(p, l.id)).length}/${lessons.length} mastered · ${lessonsDone} marked complete`,
+    },
     { id: 'coverage', label: `Practised every objective (≥${COVERAGE_TARGET} distinct questions each)`, met: coverage >= R.coverage, detail: `${Math.round(coverage * 100)}% weighted coverage` },
     { id: 'domains', label: `Every domain at ≥${R.domainFloor * 100}% conservative mastery`, met: minDomain >= R.domainFloor, detail: `Lowest domain: ${Math.round(minDomain * 100)}%` },
     { id: 'mocks', label: `${R.minMocks}+ full mock exams in the last ${R.mockWindowDays} days`, met: fullMocks.length >= R.minMocks, detail: `${fullMocks.length} recent full mock exam(s)` },
@@ -249,7 +255,10 @@ function studyPlan(
     }
     plan.push({ kind: 'questions', label: `Answer 10 ${objName(o)} questions`, href: `#/practice?objective=${o}`, reason: m[o].distinct < COVERAGE_TARGET ? `Only ${m[o].distinct} distinct questions answered so far.` : 'Fresh evidence will update your mastery estimate.' });
   }
-  if (repeated.length)
+  const dueQ = dueQuestionReviews(p, now).length;
+  if (dueQ)
+    plan.push({ kind: 'mistakes', label: `Review ${dueQ} missed question(s) due today`, href: '#/review', reason: 'Missed questions come back on a spaced schedule until you answer them correctly over several weeks.' });
+  else if (repeated.length)
     plan.push({ kind: 'mistakes', label: `Re-attempt ${Math.min(repeated.length, 10)} repeatedly missed question(s)`, href: '#/review', reason: 'Repeated misses usually signal a misconception rather than a slip.' });
   const due = dueCards(flashcards, p.cards, now).filter((c) => p.cards[c.id]).length;
   if (due) plan.push({ kind: 'flashcards', label: `Review ${due} due flashcard(s)`, href: '#/flashcards', reason: 'Spaced repetition keeps facts from decaying before exam day.' });
@@ -258,6 +267,17 @@ function studyPlan(
   if (p.attempts.length >= 40 && (!lastFullMock || now - lastFullMock > 7 * DAY))
     plan.push({ kind: 'mock', label: 'Take a full 60-question mock exam', href: '#/exam', reason: lastFullMock ? 'Your last full mock is more than a week old.' : 'You have enough practice to benchmark against exam conditions.' });
   return plan.slice(0, 7);
+}
+
+/** A lesson is mastered when the latest answer to every knowledge-check question is correct. */
+export function lessonMastered(p: Progress, lessonId: string): boolean {
+  const qs = knowledgeCheckFor(lessonId);
+  if (!qs.length) return false;
+  return qs.every((q) => {
+    let last: Attempt | undefined;
+    for (const a of p.attempts) if (a.qid === q.id && (!last || a.at >= last.at)) last = a;
+    return !!last?.correct;
+  });
 }
 
 /** First lesson in learning-path order that hasn't been completed. */

@@ -32,14 +32,19 @@ Two lucky answers give a mean of 75% but a lower estimate near 50%. Forty correc
 
 Completing lessons never changes the index on its own; a unit test enforces this. The 80% mock bar is 5 points above the 75% practice pass mark, which leaves a margin for exam-day variance and question differences.
 
-## 4. Weakness diagnosis and study plan
+## 4. Mastery and spaced review
+
+- **Lesson mastery**: a lesson is *mastered* when the learner's latest answer to every knowledge-check question is correct (`lessonMastered`). The readiness checklist requires every KCNA lesson to be mastered, not just marked read.
+- **Missed-question review**: every wrong answer (quiz, exam or review) puts the question in a spaced queue, due the next day. Each later correct answer extends the interval (SM-2 grade 4); the question graduates once its interval reaches 21 days. A new miss resets it. Due reviews appear in the study plan and on the Smart review page.
+
+## 5. Weakness diagnosis and study plan
 
 - **Demonstrated weaknesses** (≥ 5 answers with mean < 65%) rank first. The rest are ranked by *expected exam points lost* = competency weight × (1 − lower mastery).
 - **Repeated mistakes** are questions missed at least twice and not answered correctly since.
 - The study plan combines, in order: the next lesson in the path (if fewer than 10 answers), the lesson, hands-on practice and 10 questions for the top two weak competencies, then repeated mistakes, due flashcards, a matching full lab, and a full mock if the last one is older than 7 days.
 - The tutor's **Revision mode** receives a compact text summary of this analysis (`performanceSummary`), so it can explain *why* a topic is recommended.
 
-## 5. Mock exams
+## 6. Mock exams
 
 - `selectExamQuestions` splits the question count across domains by exam weight, using the largest-remainder method (60 questions → 26/17/10/7). It never repeats a question. If a domain pool runs short, it tops up from the other domains. Up to 25% of each domain's picks favour questions the learner recently got wrong.
 - Scoring is all-or-nothing per question (multi-select answers must match exactly).

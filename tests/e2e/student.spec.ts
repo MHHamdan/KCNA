@@ -224,3 +224,26 @@ test('responsive: mobile layout has a menu and no horizontal scroll @mobile', as
   await page.getByRole('dialog', { name: 'Menu' }).getByRole('link', { name: 'Flashcards' }).click();
   await expect(page.getByRole('heading', { name: 'Flashcards' })).toBeVisible();
 });
+
+test('phone install + spaced review: manifest served, missed questions are scheduled', async ({ page, request }) => {
+  const m = await request.get('/manifest.webmanifest');
+  expect(m.ok()).toBe(true);
+  expect((await m.json()).display).toBe('standalone');
+  expect((await request.get('/sw.js')).ok()).toBe(true);
+
+  await fresh(page);
+  await page.goto('/#/practice');
+  // answer until one is wrong (pick the first choice each time)
+  for (let i = 0; i < 10; i++) {
+    const q = page.getByTestId('question-card');
+    await q.locator('label').first().click();
+    const multi = (await q.locator('input').first().getAttribute('type')) === 'checkbox';
+    if (multi) await q.locator('label').nth(1).click();
+    await q.getByRole('button', { name: 'Check answer' }).click();
+    if (await q.getByText(/Not quite/).isVisible()) break;
+    await page.getByRole('button', { name: /Next question|See results/ }).click();
+  }
+  await page.goto('/#/review');
+  await expect(page.getByText(/[1-9]\d* question\(s\) are in your review queue/)).toBeVisible();
+  await expect(page.getByRole('tab', { name: /Due today/ })).toBeVisible();
+});

@@ -1,5 +1,5 @@
 import type { DomainId, ObjectiveId } from '@kcna/content';
-import type { CardState } from './srs';
+import { newCard, review, type CardState } from './srs';
 
 export const PROGRESS_VERSION = 1;
 export const MAX_ATTEMPTS = 5000;
@@ -54,6 +54,8 @@ export interface Progress {
   attempts: Attempt[];
   exams: ExamRecord[];
   cards: Record<string, CardState>;
+  /** missed questions scheduled for spaced review (question id -> schedule) */
+  questionReviews: Record<string, CardState>;
   /** YYYY-MM-DD -> number of learning events that day */
   activity: Record<string, number>;
   prefs: Preferences;
@@ -71,6 +73,7 @@ export function emptyProgress(now = Date.now()): Progress {
     attempts: [],
     exams: [],
     cards: {},
+    questionReviews: {},
     activity: {},
     prefs: { theme: 'system', tutorLevel: 'beginner', saveTutorHistory: false, dailyGoalMinutes: 30 },
     tutorHistory: [],
@@ -84,9 +87,38 @@ export function recordActivity(p: Progress, now = Date.now()): Progress {
   return { ...p, updatedAt: now, activity: { ...p.activity, [k]: (p.activity[k] ?? 0) + 1 } };
 }
 
+/** A missed question leaves the review queue once it has been answered correctly at spaced intervals. */
+export const QUESTION_GRADUATE_DAYS = 21;
+const DAY = 86_400_000;
+
+/** Missed questions enter a spaced-review queue (due tomorrow); correct answers push them further out until they graduate. */
+export function scheduleQuestionReviews(reviews: Record<string, CardState>, attempts: Attempt[]): Record<string, CardState> {
+  const next = { ...reviews };
+  for (const a of attempts) {
+    const cur = next[a.qid];
+    if (!a.correct) next[a.qid] = { ...(cur ? review(cur, 0, a.at) : newCard(a.at)), due: a.at + DAY, interval: 1, reps: 0, last: a.at };
+    else if (cur) {
+      const r = review(cur, 4, a.at);
+      if (r.interval >= QUESTION_GRADUATE_DAYS) delete next[a.qid];
+      else next[a.qid] = r;
+    }
+  }
+  return next;
+}
+
+export function dueQuestionReviews(p: Progress, now = Date.now()): string[] {
+  return Object.entries(p.questionReviews)
+    .filter(([, c]) => c.due <= now)
+    .sort((a, b) => a[1].due - b[1].due)
+    .map(([id]) => id);
+}
+
 export function addAttempts(p: Progress, attempts: Attempt[], now = Date.now()): Progress {
   const all = [...p.attempts, ...attempts];
-  return recordActivity({ ...p, attempts: all.slice(Math.max(0, all.length - MAX_ATTEMPTS)) }, now);
+  return recordActivity(
+    { ...p, attempts: all.slice(Math.max(0, all.length - MAX_ATTEMPTS)), questionReviews: scheduleQuestionReviews(p.questionReviews, attempts) },
+    now,
+  );
 }
 
 export function addExam(p: Progress, exam: ExamRecord, attempts: Attempt[]): Progress {
@@ -143,6 +175,10 @@ export function importProgress(json: string): Progress {
   for (const [id, c] of Object.entries((p.cards as Record<string, unknown>) ?? {}))
     if (isObj(c) && typeof c.due === 'number' && typeof c.ef === 'number' && typeof c.interval === 'number')
       cards[id] = c as unknown as CardState;
+  const questionReviews: Progress['questionReviews'] = {};
+  for (const [id, c] of Object.entries(isObj(p.questionReviews) ? p.questionReviews : {}))
+    if (isObj(c) && typeof c.due === 'number' && typeof c.ef === 'number' && typeof c.interval === 'number')
+      questionReviews[id] = c as unknown as CardState;
   const prefs = isObj(p.prefs) ? { ...base.prefs, ...(p.prefs as Partial<Preferences>) } : base.prefs;
   const tutorHistory = Array.isArray(p.tutorHistory)
     ? (p.tutorHistory as unknown[])
@@ -160,6 +196,7 @@ export function importProgress(json: string): Progress {
     attempts: attempts.slice(-MAX_ATTEMPTS),
     exams: exams.slice(-MAX_EXAMS),
     cards,
+    questionReviews,
     prefs,
     tutorHistory,
   };

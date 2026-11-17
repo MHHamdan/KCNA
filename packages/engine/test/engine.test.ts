@@ -28,6 +28,9 @@ import {
   validateTutorRequest,
   cleanModelOutput,
   factCheck,
+  dueQuestionReviews,
+  lessonMastered,
+  QUESTION_GRADUATE_DAYS,
   checkYamlChallenge,
   type Attempt,
   type ExamRecord,
@@ -439,5 +442,49 @@ describe('fact guard', () => {
       'Data in a PersistentVolume survives Pod replacement.',
     ];
     for (const t of ok) expect(factCheck(t), t).toEqual([]);
+  });
+});
+
+describe('spaced review of missed questions', () => {
+  const q = questions[0];
+  const at = (t: number, correct: boolean) => ({ qid: q.id, objective: q.objective, correct, at: t, source: 'quiz' as const });
+  it('schedules a missed question for tomorrow and graduates it after spaced correct answers', () => {
+    const t0 = Date.UTC(2026, 0, 1);
+    let p = addAttempts(emptyProgress(t0), [at(t0, false)], t0);
+    expect(dueQuestionReviews(p, t0)).toEqual([]);
+    expect(dueQuestionReviews(p, t0 + 86_400_000)).toEqual([q.id]);
+    let t = t0 + 86_400_000;
+    for (let i = 0; i < 8 && p.questionReviews[q.id]; i++) {
+      p = addAttempts(p, [at(t, true)], t);
+      t = p.questionReviews[q.id]?.due ?? t;
+    }
+    expect(p.questionReviews[q.id]).toBeUndefined();
+    expect(QUESTION_GRADUATE_DAYS).toBeGreaterThanOrEqual(14);
+  });
+  it('a new miss resets the schedule', () => {
+    const t0 = Date.UTC(2026, 0, 1);
+    let p = addAttempts(emptyProgress(t0), [at(t0, false)], t0);
+    p = addAttempts(p, [at(t0 + 86_400_000, true)], t0 + 86_400_000);
+    p = addAttempts(p, [at(t0 + 2 * 86_400_000, false)], t0 + 2 * 86_400_000);
+    expect(p.questionReviews[q.id].due).toBe(t0 + 3 * 86_400_000);
+    expect(p.questionReviews[q.id].lapses).toBeGreaterThanOrEqual(1);
+  });
+  it('survives export/import', () => {
+    const p = addAttempts(emptyProgress(), [at(Date.now(), false)]);
+    expect(importProgress(exportProgress(p)).questionReviews[q.id]).toBeDefined();
+  });
+});
+
+describe('lesson mastery', () => {
+  it('requires the latest answer to every knowledge-check question to be correct', () => {
+    const checks = questions.filter((x) => x.lessonId === 'pods').sort((a, b) => a.difficulty - b.difficulty || a.id.localeCompare(b.id)).slice(0, 3);
+    let p = emptyProgress();
+    p.lessonsCompleted.pods = Date.now();
+    expect(lessonMastered(p, 'pods')).toBe(false);
+    const t = Date.now();
+    p = addAttempts(p, checks.map((c, i) => ({ qid: c.id, objective: c.objective, correct: i > 0, at: t, source: 'quiz' as const })));
+    expect(lessonMastered(p, 'pods')).toBe(false);
+    p = addAttempts(p, [{ qid: checks[0].id, objective: checks[0].objective, correct: true, at: t + 1, source: 'quiz' as const }]);
+    expect(lessonMastered(p, 'pods')).toBe(true);
   });
 });

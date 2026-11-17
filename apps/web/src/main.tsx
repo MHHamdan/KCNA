@@ -8,3 +8,11 @@ createRoot(document.getElementById('root')!).render(
     <App />
   </StrictMode>,
 );
+
+// offline support (production only; dev uses Vite's module server)
+if (import.meta.env.PROD && 'serviceWorker' in navigator)
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('./sw.js').catch(() => {
+      /* offline mode unavailable; the app still works online */
+    });
+  });

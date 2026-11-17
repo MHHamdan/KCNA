@@ -20,11 +20,12 @@ An interactive study platform for the CNCF **Kubernetes and Cloud Native Associa
 |---|---|
 | Learning path | 41 lessons over 9 stages (foundations → architecture → workloads → networking → storage → security & ops → delivery → cloud-native architecture → exam prep). Each lesson covers what/why/problem/how, components, misconceptions, an example, an exercise, a knowledge check, FAQ and official references, and is labelled *KCNA*, *Foundation* or *Beyond KCNA*. |
 | Visualizers | Clickable cluster architecture with animated sequences (`kubectl apply`, container crash vs Pod replacement, node failure), plus networking (DNS → Service → EndpointSlice → Pod, Ingress, NodePort) and storage (PVC → StorageClass → CSI → PV) step-throughs |
-| Practice | Simulated kubectl terminal (accepts aliases and flag variations), YAML trainer with a deterministic validator, troubleshooting simulator (symptom → hypothesis → investigation → evidence → solution), architecture decision game, 15 local-cluster labs (6 full kind walkthroughs) |
-| Exam prep | 156 original questions with per-option rationale; timed, domain-weighted mock exams (60 questions / 90 minutes) with flagging, navigation and wrong-answer review; smart review of repeated mistakes; SM-2 flashcards; an evidence-based **Am I ready?** page with a study plan |
+| Practice | Simulated kubectl terminal (accepts aliases and flag variations), YAML trainer with a deterministic validator, troubleshooting simulator (symptom → hypothesis → investigation → evidence → solution), architecture decision game, 15 local-cluster labs (6 full kind walkthroughs, executed weekly on a real kind cluster in CI) |
+| Exam prep | 262 original questions (each independently reviewed) with per-option rationale; timed, domain-weighted mock exams (60 questions / 90 minutes) with flagging, navigation and wrong-answer review; spaced review: every missed question returns (1 day, ~6 days, longer) until answered correctly over three weeks; lessons count as *mastered* only when their knowledge check is all correct; SM-2 flashcards; an evidence-based **Am I ready?** page with a study plan |
 | AI tutor | Six modes (Explain, Socratic, Exam coach, Troubleshoot, YAML review, Revision); follow-up conversation; answers grounded in lesson content with cited sources; available from every lesson, quiz result, lab, trainer and the dashboard; clear offline state with a non-AI knowledge-base fallback |
 | Reference | Glossary (110 terms), 12 concept comparisons, CNCF ecosystem explorer, curated free resources, full-text search |
-| Progress | Stored locally in your browser; export/import JSON, CSV study history, reset. Works offline from the tutor. |
+| Progress | Stored locally in your browser; export/import JSON, CSV study history, reset. |
+| Phone | Installable (Add to Home Screen) and works offline after the first visit — everything except the AI tutor. |
 
 ## Quick start (development)
 
@@ -47,6 +48,8 @@ The tutor needs an OpenAI-compatible model server at `LLAMA_URL` (default `http:
 | `npm run check:links` | Verify every reference URL resolves |
 | `npm run space:bundle` | Assemble the Hugging Face Space bundle |
 | `npx tsx scripts/tutor-eval.ts` | Fact-check and time the deployed tutor |
+| `npm run check:ecosystem` | Compare CNCF maturity levels with the official landscape |
+| `npx tsx scripts/run-labs.ts` | Run the full labs against the current kube context (CI: `labs.yml`) |
 
 ## Documentation
 

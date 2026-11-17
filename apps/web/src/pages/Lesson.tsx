@@ -1,7 +1,7 @@
 import { useEffect, useMemo } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { comparisons, knowledgeCheckFor, lessonById, lessons, type ObjectiveId } from '@kcna/content';
-import { addAttempts, recordActivity } from '@kcna/engine';
+import { addAttempts, lessonMastered, recordActivity } from '@kcna/engine';
 import { updateProgress, useProgress } from '../lib/store';
 import { usePageContext } from '../lib/tutorContext';
 import { PageHeader } from '../components/Layout';
@@ -135,6 +135,11 @@ export function LessonPage() {
           </Section>
         )}
         <Section id="check" title="Knowledge check">
+          <p className={`mb-3 text-sm ${lessonMastered(p, lesson.id) ? 'font-medium text-emerald-700 dark:text-emerald-300' : 'text-slate-500'}`}>
+            {lessonMastered(p, lesson.id)
+              ? '★ Mastered — your latest answer to every question below is correct.'
+              : 'Answer every question correctly to master this lesson. Missed questions come back in Smart review.'}
+          </p>
           {checks.length ? (
             <div className="space-y-4">
               {checks.map((c, i) => (
